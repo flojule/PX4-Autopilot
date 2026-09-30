@@ -1,0 +1,86 @@
+module_name: coax_mixer
+parameters:
+- group: Coaxial Mixer
+  definitions:
+    CM_COLL_MIN:
+      description:
+        short: Collective at zero thrust setpoint
+      type: float
+      default: 0.0
+      unit: deg
+      decimal: 1
+    CM_COLL_MAX:
+      description:
+        short: Collective at full thrust setpoint
+      type: float
+      default: 12.0
+      unit: deg
+      decimal: 1
+    CM_CYC_MAX:
+      description:
+        short: Cyclic amplitude per rotor at full roll/pitch torque setpoint
+      type: float
+      default: 2.0
+      unit: deg
+      decimal: 2
+    CM_DIFF_MAX:
+      description:
+        short: Differential collective at full yaw torque setpoint
+      type: float
+      default: 2.0
+      unit: deg
+      decimal: 2
+    CM_PITCH_MIN:
+      description:
+        short: Blade pitch at servo output -1
+      type: float
+      default: -5.0
+      unit: deg
+      decimal: 1
+    CM_PITCH_MAX:
+      description:
+        short: Blade pitch at servo output +1
+      type: float
+      default: 15.0
+      unit: deg
+      decimal: 1
+    CM_RPM:
+      description:
+        short: Rotor speed command when armed (governed ESC)
+      type: float
+      default: 600.0
+      unit: rpm
+      decimal: 0
+    CM_RPM_MAX:
+      description:
+        short: Rotor speed at motor output 1
+      type: float
+      default: 1000.0
+      unit: rpm
+      decimal: 0
+    CM_SRV_TAU:
+      description:
+        short: Blade servo time constant for 1/rev lag compensation
+      type: float
+      default: 0.015
+      unit: s
+      decimal: 3
+    CM_SRV_RATE:
+      description:
+        short: Blade servo rate limit for cyclic amplitude limiting
+      type: float
+      default: 400.0
+      unit: deg/s
+      decimal: 0
+    CM_LAG_COMP:
+      description:
+        short: Compensate servo gain and phase lag at 1/rev
+      type: boolean
+      default: 1
+    CM_AZ_OFF:
+      description:
+        short: Encoder azimuth offset added to the measured azimuth
+      type: float
+      default: 0.0
+      unit: deg
+      decimal: 1

@@ -83,6 +83,41 @@ void Sih::run()
 					    static_cast<int32_t>(VehicleType::First),
 					    static_cast<int32_t>(VehicleType::Last)));
 
+#if defined(SIH_COAXIAL)
+
+	if (_vehicle == VehicleType::Coaxial) {
+		const char *path = getenv("APEROCOPTER_PLANT");
+		const auto plant_params = path ? plant::Params::load(path) : std::nullopt;
+
+		if (!plant_params) {
+			PX4_ERR("coaxial: set APEROCOPTER_PLANT to a readable tools.plant_py.params file");
+			exit_and_cleanup(desc);
+			return;
+		}
+
+		_plant = *plant_params;
+		_plant_x(6) = 1.0; // level attitude, rotor at rest, blades at 0 pitch
+
+		float v = 0.f;
+		param_get(param_find("CM_PITCH_MIN"), &v);
+		_cm_pitch_min = math::radians(v);
+		param_get(param_find("CM_PITCH_MAX"), &v);
+		_cm_pitch_max = math::radians(v);
+		param_get(param_find("CM_RPM_MAX"), &v);
+		_cm_omega_max = v * 2.f * M_PI_F / 60.f;
+		parameters_updated(); // mass and inertia from the plant file
+	}
+
+#else
+
+	if (_vehicle == VehicleType::Coaxial) {
+		PX4_ERR("coaxial needs libplant: POSIX (SITL) build only");
+		exit_and_cleanup(desc);
+		return;
+	}
+
+#endif
+
 #if defined(ENABLE_LOCKSTEP_SCHEDULER)
 	lockstep_loop();
 #else
@@ -353,6 +388,20 @@ void Sih::parameters_updated()
 	_I(0, 2) = _I(2, 0) = _sih_ixz.get();
 	_I(1, 2) = _I(2, 1) = _sih_iyz.get();
 
+#if defined(SIH_COAXIAL)
+
+	if (_vehicle == VehicleType::Coaxial) {
+		_MASS = static_cast<float>(_plant.mass);
+
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				_I(i, j) = static_cast<float>(_plant.inertia(i, j));
+			}
+		}
+	}
+
+#endif
+
 	// guards against too small determinants
 	_Im1 = 100.0f * inv(static_cast<typeof _I>(100.0f * _I));
 
@@ -375,7 +424,8 @@ void Sih::read_motors(const float dt)
 		_last_actuator_output_time = actuators_out.timestamp;
 
 		for (int i = 0; i < NUM_ACTUATORS_MAX; i++) { // saturate the motor signals
-			if ((_vehicle == VehicleType::FixedWing && i < 3) || (_vehicle == VehicleType::TailsitterVTOL && i > 3)) {
+			if ((_vehicle == VehicleType::FixedWing && i < 3) || (_vehicle == VehicleType::TailsitterVTOL && i > 3)
+			    || _vehicle == VehicleType::Coaxial) { // coaxial: motor and servo dynamics in libplant
 				_u[i] = actuators_out.output[i];
 
 			} else {
@@ -402,6 +452,8 @@ uint8_t Sih::num_motors() const
 	case VehicleType::FixedWing:      return 1;                // motor at index 3, surfaces at 0..2 are skipped
 
 	case VehicleType::RoverAckermann: return 1;
+
+	case VehicleType::Coaxial:        return 1;                // motor at index 0, blade servos at 1..4 skipped
 
 	default:                          return 0;
 	}
@@ -518,8 +570,44 @@ void Sih::generate_force_and_torques(const float dt)
 
 	} else if (_vehicle == VehicleType::RoverAckermann) {
 		generate_rover_ackermann_dynamics(_u[1], _u[0], dt);
+
+#if defined(SIH_COAXIAL)
+
+	} else if (_vehicle == VehicleType::Coaxial) {
+		generate_coaxial_forces(dt);
+#endif
 	}
 }
+
+#if defined(SIH_COAXIAL)
+void Sih::generate_coaxial_forces(const float dt)
+{
+	// rotor states advance with commands held over dt; body pose from SIH (ground effect)
+	std::array<double, 4> cmd{};
+
+	for (int k = 0; k < 4; k++) {
+		cmd[k] = _cm_pitch_min + 0.5f * (_u[1 + k] + 1.f) * (_cm_pitch_max - _cm_pitch_min);
+	}
+
+	for (int i = 0; i < 3; i++) {
+		_plant_x(i) = _lpos(i);
+	}
+
+	_plant_x.segment<4>(6) = Eigen::Vector4d(_q(0), _q(1), _q(2), _q(3));
+	plant::rotor_step(_plant, _plant_x, cmd, _u[0] * _cm_omega_max, dt);
+	const plant::Wrench w = plant::rotor_wrench(_plant, _plant_x);
+	_T_B = Vector3f(w.force(0), w.force(1), w.force(2));
+	_Mt_B = Vector3f(w.moment(0), w.moment(1), w.moment(2));
+	_Fa_E = -_KDV * _R_N2E * _v_apparent_N;
+	_Ma_B = -_KDW * _w_B;
+
+	rotor_azimuth_s az{};
+	az.azimuth = static_cast<float>(std::fmod(_plant_x(14), 2.0 * M_PI));
+	az.speed = static_cast<float>(_plant_x(13));
+	az.timestamp = hrt_absolute_time();
+	_rotor_azimuth_pub.publish(az);
+}
+#endif
 
 void Sih::generate_fw_aerodynamics(const float roll_cmd, const float pitch_cmd, const float yaw_cmd,
 				   const float thrust_for_prowash)
@@ -653,7 +741,8 @@ void Sih::equations_of_motion(const float dt)
 		if (_vehicle == VehicleType::Quadcopter
 		    || _vehicle == VehicleType::Hexacopter
 		    || _vehicle == VehicleType::TailsitterVTOL
-		    || _vehicle == VehicleType::StandardVTOL) {
+		    || _vehicle == VehicleType::StandardVTOL
+		    || _vehicle == VehicleType::Coaxial) {
 			ground_force_E = -sum_of_forces_E;
 
 			if (!_grounded) {
@@ -998,6 +1087,14 @@ int Sih::print_status()
 
 	} else if (_vehicle == VehicleType::RoverAckermann) {
 		PX4_INFO("Rover Ackermann");
+
+	} else if (_vehicle == VehicleType::Coaxial) {
+		PX4_INFO("Coaxial (aperocopter libplant)");
+#if defined(SIH_COAXIAL)
+		PX4_INFO("rotor speed %.1f rad/s, blade pitch %.2f %.2f %.2f %.2f deg", _plant_x(13),
+			 math::degrees(_plant_x(15)), math::degrees(_plant_x(16)), math::degrees(_plant_x(17)),
+			 math::degrees(_plant_x(18)));
+#endif
 	}
 
 	PX4_INFO("vehicle landed: %d", _grounded);

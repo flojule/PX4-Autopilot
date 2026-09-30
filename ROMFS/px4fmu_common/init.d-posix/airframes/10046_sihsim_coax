@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# @name aperocopter coaxial SITL for SIH (libplant rotor model, coax_mixer per-blade pitch)
+#
+# @type Coaxial Helicopter
+#
+# Needs APEROCOPTER_PLANT=<file from: python -m tools.plant_py.params> (aperocopter repo).
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+PX4_SIMULATOR=${PX4_SIMULATOR:=sihsim}
+PX4_SIM_MODEL=${PX4_SIM_MODEL:=coax}
+
+param set-default MAV_TYPE 3
+
+param set-default SENS_EN_GPSSIM 1
+param set-default SENS_EN_BAROSIM 1
+param set-default SENS_EN_MAGSIM 1
+param set-default SENS_GNSS0_DELAY 0
+param set-default SENS_GNSS1_DELAY 0
+
+# 400 Hz simulation and mixer as on the FMU (brief section 11); set, px4-rc.simulator defaults 250 Hz
+param set IMU_INTEG_RATE 400
+
+# outputs: motor 1 (governed rpm), servos 1-4 (blades upper 0/180, lower 0/180), coax_mixer
+param set-default PWM_MAIN_FUNC1 101
+param set-default PWM_MAIN_FUNC2 201
+param set-default PWM_MAIN_FUNC3 202
+param set-default PWM_MAIN_FUNC4 203
+param set-default PWM_MAIN_FUNC5 204
+
+# plant has no aerodynamic damping
+param set-default SIH_KDV 0
+param set-default SIH_KDW 0
+
+# rate loops: 384 N m cyclic authority (2 x 96 N m/deg x CM_CYC_MAX 2 deg); crossover 26 / 8.5 rad/s
+# at 0 / 68 kg payload (P 0.5 limit-cycles at 0 kg)
+param set-default MC_ROLLRATE_P 0.2
+param set-default MC_ROLLRATE_I 0.1
+param set-default MC_ROLLRATE_D 0
+param set-default MC_PITCHRATE_P 0.2
+param set-default MC_PITCHRATE_I 0.1
+param set-default MC_PITCHRATE_D 0
+param set-default MC_YAWRATE_P 1.0
+param set-default MC_YAWRATE_I 0.2
+param set-default MPC_THR_HOVER 0.5
+
+param set SIH_VEHICLE_TYPE 6

@@ -52,6 +52,16 @@ px4_add_module(
 	)
 
 if(PX4_PLATFORM MATCHES "posix")
+	# aperocopter coaxial class: libplant from the sibling repo (single source), Eigen from the system
+	set(APEROCOPTER_DIR ${PX4_SOURCE_DIR}/../aperocopter CACHE PATH "aperocopter repo")
+	find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+	target_sources(modules__simulation__simulator_sih PRIVATE ${APEROCOPTER_DIR}/tools/plant_cpp/src/plant.cpp)
+	target_include_directories(modules__simulation__simulator_sih PRIVATE ${APEROCOPTER_DIR}/tools/plant_cpp/include)
+	target_link_libraries(modules__simulation__simulator_sih PRIVATE Eigen3::Eigen)
+	target_compile_definitions(modules__simulation__simulator_sih PRIVATE SIH_COAXIAL)
+endif()
+
+if(PX4_PLATFORM MATCHES "posix")
 	# create targets for sihsim
 	set(models
 		airplane
@@ -60,6 +70,7 @@ if(PX4_PLATFORM MATCHES "posix")
 		standard_vtol
 		hex
 		rover_ackermann
+		coax
 	)
 
 	# find corresponding airframes

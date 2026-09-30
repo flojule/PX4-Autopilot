@@ -1,0 +1,5 @@
+menuconfig MODULES_COAX_MIXER
+	bool "coax_mixer"
+	default n
+	---help---
+		Coaxial per-blade pitch mixer (aperocopter): torque/thrust setpoints to 4 blade servos + 1 motor

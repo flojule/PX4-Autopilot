@@ -78,6 +78,10 @@
 #include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/failure_injection.h>
 #include <uORB/topics/esc_status.h>
+#if defined(SIH_COAXIAL)
+#include <plant/plant.hpp>
+#include <uORB/topics/rotor_azimuth.h>
+#endif
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude.h>
@@ -265,11 +269,20 @@ private:
 	matrix::Vector3f _lpos{};  // position in a local tangent-plane frame [m]
 
 	float _u[NUM_ACTUATORS_MAX] {}; // thruster signals
+
+#if defined(SIH_COAXIAL)
+	// aperocopter coaxial: libplant rotor model; outputs 0 = motor, 1..4 = blade servos (coax_mixer)
+	void generate_coaxial_forces(const float dt);
+	plant::Params _plant{};
+	plant::State _plant_x{plant::State::Zero()};
+	float _cm_pitch_min{0.f}, _cm_pitch_max{0.f}, _cm_omega_max{0.f}; // coax_mixer output scaling [rad, rad/s]
+	uORB::Publication<rotor_azimuth_s> _rotor_azimuth_pub{ORB_ID(rotor_azimuth)};
+#endif
 	float       _T[NUM_DYN_THRUSTER] {};         // thruster forces (N)
 	float       _Q[NUM_DYN_THRUSTER] {};         // thruster torque (Nm)
 	Thruster    _thruster[NUM_DYN_THRUSTER] {};	// thruster objects
 
-	enum class VehicleType {Quadcopter, FixedWing, TailsitterVTOL, StandardVTOL, Hexacopter, RoverAckermann, First = Quadcopter, Last = RoverAckermann}; // numbering dependent on parameter SIH_VEHICLE_TYPE
+	enum class VehicleType {Quadcopter, FixedWing, TailsitterVTOL, StandardVTOL, Hexacopter, RoverAckermann, Coaxial, First = Quadcopter, Last = Coaxial}; // numbering dependent on parameter SIH_VEHICLE_TYPE
 	VehicleType _vehicle = VehicleType::Quadcopter;
 
 	// aerodynamic segments for the fixedwing

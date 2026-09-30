@@ -1,0 +1,3 @@
+# coax_mixer replaces control_allocator (per-blade pitch needs rotor azimuth)
+control_allocator stop
+coax_mixer start

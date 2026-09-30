@@ -273,6 +273,7 @@ parameters:
         3: Standard VTOL
         4: Hexacopter
         5: Rover Ackermann
+        6: Coaxial (aperocopter, needs APEROCOPTER_PLANT)
       default: 0
       reboot_required: true
     SIH_WIND_N:
