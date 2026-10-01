@@ -1,4 +1,4 @@
-# coax_mixer replaces control_allocator (per-blade pitch needs rotor azimuth)
+# coax_mixer replaces control_allocator (per-blade flaps need rotor azimuth)
 control_allocator stop
 coax_mixer start
 # tools/viz.py: rotor state and true pose on the SIH display link (400 Hz sim time)

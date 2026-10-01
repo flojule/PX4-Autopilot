@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# @name aperocopter coaxial SITL for SIH (libplant rotor model, coax_mixer per-blade pitch)
+# @name aperocopter coaxial SITL for SIH (libplant rotor model, coax_mixer per-blade tip flaps)
 #
 # @type Coaxial Helicopter
 #
@@ -20,10 +20,10 @@ param set-default SENS_EN_MAGSIM 1
 param set-default SENS_GNSS0_DELAY 0
 param set-default SENS_GNSS1_DELAY 0
 
-# 400 Hz simulation and mixer as on the FMU (brief section 11); set, px4-rc.simulator defaults 250 Hz
+# 400 Hz simulation and mixer as on the FMU; px4-rc.simulator defaults 250 Hz
 param set IMU_INTEG_RATE 400
 
-# outputs: motor 1 (governed rpm), servos 1-4 (blades upper 0/180, lower 0/180), coax_mixer
+# outputs: motor 1 (rotor speed), servos 1-4 (flaps upper 0/180, lower 0/180), coax_mixer
 param set-default PWM_MAIN_FUNC1 101
 param set-default PWM_MAIN_FUNC2 201
 param set-default PWM_MAIN_FUNC3 202
@@ -34,16 +34,18 @@ param set-default PWM_MAIN_FUNC5 204
 param set-default SIH_KDV 0
 param set-default SIH_KDW 0
 
-# rate loops: 384 N m cyclic authority (2 x 96 N m/deg x CM_CYC_MAX 2 deg); crossover 26 / 8.5 rad/s
-# at 0 / 68 kg payload (P 0.5 limit-cycles at 0 kg)
+# rate loops: 461 N m cyclic flap authority (2 x 28.8 N m/deg x CM_CYC_MAX 8 deg, speed-normalized
+# by coax_mixer), same gains for 0-68 kg payload
 param set-default MC_ROLLRATE_P 0.2
 param set-default MC_ROLLRATE_I 0.1
 param set-default MC_ROLLRATE_D 0
 param set-default MC_PITCHRATE_P 0.2
 param set-default MC_PITCHRATE_I 0.1
 param set-default MC_PITCHRATE_D 0
-param set-default MC_YAWRATE_P 1.0
-param set-default MC_YAWRATE_I 0.2
-param set-default MPC_THR_HOVER 0.5
+param set-default MC_YAWRATE_P 2.0
+param set-default MC_YAWRATE_I 0.4
+# thrust ~ rotor speed^2: hover thrust 0.11 / 0.38 / 0.64 at 0 / 34 / 68 kg (CM_RPM_MAX 750)
+param set-default MPC_THR_HOVER 0.4
+param set-default MPC_THR_MIN 0.05
 
 param set SIH_VEHICLE_TYPE 6

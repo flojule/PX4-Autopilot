@@ -32,8 +32,8 @@
  ****************************************************************************/
 
 /**
- * Coaxial per-blade mixer (aperocopter): replaces control_allocator.
- * Runs on every rotor_azimuth update; outputs motor 1 (governed rpm) and servos 1-4 (blade pitch).
+ * Coaxial per-blade tip-flap mixer (aperocopter, fixed blade pitch): replaces control_allocator.
+ * Runs on every rotor_azimuth update; outputs motor 1 (rotor speed) and servos 1-4 (tip flaps).
  */
 
 #pragma once
@@ -88,20 +88,16 @@ private:
 	bool _armed{false};
 	float _thrust{0.f};           // [0, 1] upward
 	float _torque[3] {};          // normalized roll, pitch, yaw
-	float _pitch_cmd[4] {};       // last blade pitch commands [rad]
+	float _flap_cmd[4] {};        // last flap commands [rad]
 
 	DEFINE_PARAMETERS(
-		(ParamFloat<px4::params::CM_COLL_MIN>) _param_coll_min,
-		(ParamFloat<px4::params::CM_COLL_MAX>) _param_coll_max,
 		(ParamFloat<px4::params::CM_CYC_MAX>) _param_cyc_max,
 		(ParamFloat<px4::params::CM_DIFF_MAX>) _param_diff_max,
-		(ParamFloat<px4::params::CM_PITCH_MIN>) _param_pitch_min,
-		(ParamFloat<px4::params::CM_PITCH_MAX>) _param_pitch_max,
-		(ParamFloat<px4::params::CM_RPM>) _param_rpm,
-		(ParamFloat<px4::params::CM_RPM_MAX>) _param_rpm_max,
+		(ParamFloat<px4::params::CM_FLAP_MIN>) _param_flap_min,
+		(ParamFloat<px4::params::CM_FLAP_MAX>) _param_flap_max,
+		(ParamFloat<px4::params::CM_RPM_REF>) _param_rpm_ref,
 		(ParamFloat<px4::params::CM_SRV_TAU>) _param_srv_tau,
 		(ParamFloat<px4::params::CM_SRV_RATE>) _param_srv_rate,
-		(ParamBool<px4::params::CM_LAG_COMP>) _param_lag_comp,
 		(ParamFloat<px4::params::CM_AZ_OFF>) _param_az_off
 	)
 };

@@ -276,7 +276,7 @@ private:
 	void generate_coaxial_forces(const float dt);
 	plant::Params _plant{};
 	plant::State _plant_x{plant::State::Zero()};
-	float _cm_pitch_min{0.f}, _cm_pitch_max{0.f}, _cm_omega_max{0.f}; // coax_mixer output scaling [rad, rad/s]
+	float _cm_flap_min{0.f}, _cm_flap_max{0.f}, _cm_omega_max{0.f}; // coax_mixer output scaling [rad, rad/s]
 	uORB::Publication<rotor_azimuth_s> _rotor_azimuth_pub{ORB_ID(rotor_azimuth)};
 	uORB::Publication<debug_array_s> _debug_array_pub{ORB_ID(debug_array)};
 #endif

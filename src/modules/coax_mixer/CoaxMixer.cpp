@@ -99,24 +99,26 @@ void CoaxMixer::Run()
 	rotor_azimuth_s az;
 
 	if (_rotor_azimuth_sub.update(&az)) {
-		// hub moment: M_x = -K (theta1s_u + theta1s_l), M_y = K (theta1c_u + theta1c_l); yaw = Q_l - Q_u
-		const float coll = math::radians(_param_coll_min.get()
-						  + _thrust * (_param_coll_max.get() - _param_coll_min.get()));
-		const float diff = math::radians(_param_diff_max.get()) * _torque[2];
-		const float cyc = math::radians(_param_cyc_max.get());
+		// hub moment: M_x = -K (d1s_u + d1s_l), M_y = K (d1c_u + d1c_l), yaw = Q_l - Q_u; flap moment and
+		// torque per flap scale with Omega^2: normalize to CM_RPM_REF with the measured rotor speed
+		const float om_ref = _param_rpm_ref.get() * M_TWOPI_F / 60.f;
+		const float om = math::max(az.speed, 0.25f * om_ref);
+		const float scale = om_ref * om_ref / (om * om);
+		const float diff = math::radians(_param_diff_max.get()) * _torque[2] * scale;
+		const float cyc = math::radians(_param_cyc_max.get()) * scale;
 		const float c = cyc * _torque[1];
 		const float s = -cyc * _torque[0];
-		const std::array<double, 6> u{coll - diff, coll + diff, c, c, s, s};
-		const auto cmd = plant::mix(u, az.azimuth + math::radians(_param_az_off.get()), az.speed,
-					    _param_srv_tau.get(), math::radians(_param_srv_rate.get()), _param_lag_comp.get());
+		const std::array<double, 6> u{-diff, diff, c, c, s, s};
+		const auto cmd = plant::mix(u, az.azimuth + math::radians(_param_az_off.get()), om,
+					    _param_srv_tau.get(), math::radians(_param_srv_rate.get()));
 
-		const float pmin = math::radians(_param_pitch_min.get());
-		const float pmax = math::radians(_param_pitch_max.get());
+		const float fmin = math::radians(_param_flap_min.get());
+		const float fmax = math::radians(_param_flap_max.get());
 		actuator_servos_s servos{};
 
 		for (int k = 0; k < 4; k++) {
-			_pitch_cmd[k] = static_cast<float>(cmd[k]);
-			servos.control[k] = math::constrain(2.f * (_pitch_cmd[k] - pmin) / (pmax - pmin) - 1.f, -1.f, 1.f);
+			_flap_cmd[k] = static_cast<float>(cmd[k]);
+			servos.control[k] = math::constrain(2.f * (_flap_cmd[k] - fmin) / (fmax - fmin) - 1.f, -1.f, 1.f);
 		}
 
 		for (int k = 4; k < actuator_servos_s::NUM_CONTROLS; k++) {
@@ -130,7 +132,7 @@ void CoaxMixer::Run()
 		}
 
 		if (_armed) {
-			motors.control[0] = math::constrain(_param_rpm.get() / _param_rpm_max.get(), 0.f, 1.f);
+			motors.control[0] = sqrtf(_thrust); // fixed blade pitch: thrust ~ Omega^2, output 1 = CM_RPM_MAX
 		}
 
 		const hrt_abstime now = hrt_absolute_time();
@@ -169,8 +171,8 @@ int CoaxMixer::print_status()
 {
 	PX4_INFO("armed %d, thrust %.3f, torque %.3f %.3f %.3f", _armed, (double)_thrust, (double)_torque[0],
 		 (double)_torque[1], (double)_torque[2]);
-	PX4_INFO("blade pitch cmd [deg] %.2f %.2f %.2f %.2f", (double)math::degrees(_pitch_cmd[0]),
-		 (double)math::degrees(_pitch_cmd[1]), (double)math::degrees(_pitch_cmd[2]), (double)math::degrees(_pitch_cmd[3]));
+	PX4_INFO("flap cmd [deg] %.2f %.2f %.2f %.2f", (double)math::degrees(_flap_cmd[0]),
+		 (double)math::degrees(_flap_cmd[1]), (double)math::degrees(_flap_cmd[2]), (double)math::degrees(_flap_cmd[3]));
 	perf_print_counter(_loop_perf);
 	return 0;
 }
@@ -189,9 +191,10 @@ int CoaxMixer::print_usage(const char *reason)
 	PRINT_MODULE_DESCRIPTION(
 		R"DESCR_STR(
 ### Description
-Coaxial per-blade pitch mixer (aperocopter). Replaces control_allocator: maps thrust and torque
-setpoints to collective, differential collective and cyclic, then to 4 blade pitch commands phased by
-the rotor azimuth (rotor_azimuth), with servo lag compensation. Motor 1 holds a governed rpm when armed.
+Coaxial per-blade tip-flap mixer (aperocopter; fixed blade pitch). Replaces control_allocator: thrust
+setpoint to rotor speed (motor 1, thrust ~ Omega^2), yaw torque to differential flap, roll/pitch torque
+to cyclic flap, then 4 flap commands phased by the rotor azimuth (rotor_azimuth) with servo lag
+compensation. Flap terms are scaled by (CM_RPM_REF / Omega)^2 for a speed-independent moment.
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("coax_mixer", "controller");
