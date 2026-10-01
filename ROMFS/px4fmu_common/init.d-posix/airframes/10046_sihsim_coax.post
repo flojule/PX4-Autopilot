@@ -1,3 +1,5 @@
 # coax_mixer replaces control_allocator (per-blade pitch needs rotor azimuth)
 control_allocator stop
 coax_mixer start
+# tools/viz.py: rotor state and true pose on the SIH display link (400 Hz sim time)
+mavlink stream -r 400 -s DEBUG_FLOAT_ARRAY -u $udp_sihsim_port_local

@@ -81,6 +81,7 @@
 #if defined(SIH_COAXIAL)
 #include <plant/plant.hpp>
 #include <uORB/topics/rotor_azimuth.h>
+#include <uORB/topics/debug_array.h>
 #endif
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
@@ -277,6 +278,7 @@ private:
 	plant::State _plant_x{plant::State::Zero()};
 	float _cm_pitch_min{0.f}, _cm_pitch_max{0.f}, _cm_omega_max{0.f}; // coax_mixer output scaling [rad, rad/s]
 	uORB::Publication<rotor_azimuth_s> _rotor_azimuth_pub{ORB_ID(rotor_azimuth)};
+	uORB::Publication<debug_array_s> _debug_array_pub{ORB_ID(debug_array)};
 #endif
 	float       _T[NUM_DYN_THRUSTER] {};         // thruster forces (N)
 	float       _Q[NUM_DYN_THRUSTER] {};         // thruster torque (Nm)

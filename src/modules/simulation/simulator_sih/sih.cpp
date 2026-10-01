@@ -598,7 +598,11 @@ void Sih::generate_coaxial_forces(const float dt)
 	const plant::Wrench w = plant::rotor_wrench(_plant, _plant_x);
 	_T_B = Vector3f(w.force(0), w.force(1), w.force(2));
 	_Mt_B = Vector3f(w.moment(0), w.moment(1), w.moment(2));
-	_Fa_E = -_KDV * _R_N2E * _v_apparent_N;
+	// quadratic body drag (plant file) plus SIH_KDV linear drag
+	const Vector3f v_air_B = _q.rotateVectorInverse(_v_apparent_N);
+	const Vector3f cda(_plant.cda(0), _plant.cda(1), _plant.cda(2));
+	const Vector3f drag_B = -0.5f * float(_plant.rho) * v_air_B.norm() * cda.emult(v_air_B);
+	_Fa_E = _R_N2E * (_q.rotateVector(drag_B) - _KDV * _v_apparent_N);
 	_Ma_B = -_KDW * _w_B;
 
 	rotor_azimuth_s az{};
@@ -606,6 +610,16 @@ void Sih::generate_coaxial_forces(const float dt)
 	az.speed = static_cast<float>(_plant_x(13));
 	az.timestamp = hrt_absolute_time();
 	_rotor_azimuth_pub.publish(az);
+
+	// viewer (tools/viz.py): true pose NED + rotor state, streamed on the SIH display link
+	debug_array_s dbg{};
+	dbg.timestamp = az.timestamp;
+	strncpy(dbg.name, "coax", sizeof(dbg.name));
+	const float viz[] = {_lpos(0), _lpos(1), _lpos(2), _q(0), _q(1), _q(2), _q(3), az.azimuth, az.speed,
+			     float(_plant_x(15)), float(_plant_x(16)), float(_plant_x(17)), float(_plant_x(18))
+			    };
+	memcpy(dbg.data, viz, sizeof(viz));
+	_debug_array_pub.publish(dbg);
 }
 #endif
 
@@ -745,6 +759,12 @@ void Sih::equations_of_motion(const float dt)
 		    || _vehicle == VehicleType::Coaxial) {
 			ground_force_E = -sum_of_forces_E;
 
+			if (_vehicle == VehicleType::Coaxial && _grounded) {
+				// landing gear: no sliding on the ground (first contact is handled below)
+				const Vector3f down = _R_N2E.col(2);
+				ground_force_E += -(_v_E - down * down.dot(_v_E)) / dt * _MASS;
+			}
+
 			if (!_grounded) {
 				// if we just hit the floor
 				// compute the force that will stop the vehicle in one time step
@@ -795,6 +815,10 @@ void Sih::equations_of_motion(const float dt)
 
 	const Vector3f w_B_dot = _Im1 * (_Mt_B + _Ma_B - _w_B.cross(_I * _w_B)); // conservation of angular momentum
 	_w_B = constrain(_w_B + w_B_dot * dt, -6.0f * M_PI_F, 6.0f * M_PI_F);
+
+	if (_grounded && _vehicle == VehicleType::Coaxial) {
+		_w_B.setZero(); // landing gear: no tumbling on the ground
+	}
 
 	ecefToNed();
 
