@@ -1,5 +1,7 @@
 # coax_mixer replaces control_allocator (per-blade flaps need rotor azimuth)
 control_allocator stop
 coax_mixer start
-# tools/viz.py: rotor state and true pose on the SIH display link (400 Hz sim time)
+# rotor state and true pose (400 Hz sim time): SIH display link for tools/viz.py, GCS link for
+# aperocopter-QGC
 mavlink stream -r 400 -s DEBUG_FLOAT_ARRAY -u $udp_sihsim_port_local
+mavlink stream -r 400 -s DEBUG_FLOAT_ARRAY -u $udp_gcs_port_local
