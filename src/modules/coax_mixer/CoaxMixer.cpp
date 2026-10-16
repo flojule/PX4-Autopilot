@@ -115,10 +115,22 @@ void CoaxMixer::Run()
 		const float fmin = math::radians(_param_flap_min.get());
 		const float fmax = math::radians(_param_flap_max.get());
 		actuator_servos_s servos{};
+		bool clipped = false;
 
 		for (int k = 0; k < 4; k++) {
 			_flap_cmd[k] = static_cast<float>(cmd[k]);
+			clipped |= (_flap_cmd[k] < fmin) || (_flap_cmd[k] > fmax);
 			servos.control[k] = math::constrain(2.f * (_flap_cmd[k] - fmin) / (fmax - fmin) - 1.f, -1.f, 1.f);
+		}
+
+		// rate controller anti-windup (replaces control_allocator's): flap range reached -> no further
+		// integration along the torque setpoint
+		control_allocator_status_s status{};
+		status.torque_setpoint_achieved = !clipped;
+		status.thrust_setpoint_achieved = true;
+
+		for (int i = 0; i < 3; i++) {
+			status.unallocated_torque[i] = clipped ? _torque[i] : 0.f;
 		}
 
 		for (int k = 4; k < actuator_servos_s::NUM_CONTROLS; k++) {
@@ -140,6 +152,22 @@ void CoaxMixer::Run()
 		servos.timestamp = motors.timestamp = now;
 		_servos_pub.publish(servos);
 		_motors_pub.publish(motors);
+		status.timestamp = now;
+		_allocator_status_pub.publish(status);
+
+		if (_param_notch_esc.get() && now >= _esc_status_last + 20_ms) {
+			// blade passage (2/rev) as ESC 0 rpm: gyro dynamic notch (IMU_GYRO_DNF_EN ESC RPM) on its harmonics;
+			// below CM_NOTCH_MIN reported offline (notch times out): there the notch sits inside the rate loop
+			const float blade_hz = az.speed / static_cast<float>(M_PI);
+			const bool on = blade_hz >= _param_notch_min.get();
+			esc_status_s esc{};
+			esc.timestamp = esc.esc[0].timestamp = now;
+			esc.esc_count = 1;
+			esc.esc_online_flags = on ? 1 : 0;
+			esc.esc[0].esc_rpm = on ? static_cast<int32_t>(blade_hz * 60.f) : 0;
+			_esc_status_pub.publish(esc);
+			_esc_status_last = now;
+		}
 	}
 
 	perf_end(_loop_perf);
@@ -195,6 +223,8 @@ Coaxial per-blade tip-flap mixer (aperocopter; fixed blade pitch). Replaces cont
 setpoint to rotor speed (motor 1, thrust ~ Omega^2), yaw torque to differential flap, roll/pitch torque
 to cyclic flap, then 4 flap commands phased by the rotor azimuth (rotor_azimuth) with servo lag
 compensation. Flap terms are scaled by (CM_RPM_REF / Omega)^2 for a speed-independent moment.
+Publishes control_allocator_status (flap range reached: rate loop anti-windup) and, with CM_NOTCH_ESC,
+the blade passage rate as esc_status rpm for the gyro dynamic notch at 2/rev and 4/rev.
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("coax_mixer", "controller");

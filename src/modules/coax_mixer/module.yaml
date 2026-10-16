@@ -34,14 +34,14 @@ parameters:
       description:
         short: Rotor speed at which CM_CYC_MAX and CM_DIFF_MAX apply
       type: float
-      default: 600.0
+      default: 313.0
       unit: rpm
       decimal: 0
     CM_RPM_MAX:
       description:
         short: Rotor speed at motor output 1 (thrust setpoint 1)
       type: float
-      default: 750.0
+      default: 450.0
       unit: rpm
       decimal: 0
     CM_SRV_TAU:
@@ -64,4 +64,18 @@ parameters:
       type: float
       default: 0.0
       unit: deg
+      decimal: 1
+    CM_NOTCH_ESC:
+      description:
+        short: Publish the blade passage rate (2/rev) as esc_status rpm
+        long: Source for the gyro dynamic notch (IMU_GYRO_DNF_EN ESC RPM, IMU_GYRO_DNF_HMC 2 for 2/rev and 4/rev). Disable when ESC telemetry publishes esc_status.
+      type: boolean
+      default: 0
+    CM_NOTCH_MIN:
+      description:
+        short: Blade passage frequency below which CM_NOTCH_ESC reports the rotor offline
+        long: Disables the gyro notch where 2/rev falls inside the roll/pitch rate loop bandwidth (light payload).
+      type: float
+      default: 6.0
+      unit: Hz
       decimal: 1
