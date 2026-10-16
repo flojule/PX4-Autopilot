@@ -63,6 +63,7 @@ endif()
 
 if(CONFIG_MODULES_MC_RATE_CONTROL)
 	px4_add_romfs_files(
+		rc.coax_defaults
 		rc.heli_defaults
 		rc.mc_apps
 		rc.mc_defaults
