@@ -1,0 +1,20 @@
+module_name: rotor_encoder
+parameters:
+- group: Coaxial Mixer
+  definitions:
+    RENC_EN:
+      description:
+        short: Rotor azimuth encoder enable
+        long: Starts rotor_encoder, reading the slot and index tracks on the FMU pins set to the
+          output functions "Rotor Encoder Slot" and "Rotor Encoder Index".
+      type: boolean
+      default: 0
+      reboot_required: true
+    RENC_SLOTS:
+      description:
+        short: Slots on the encoder slot track per rotor revolution
+      type: int32
+      default: 36
+      min: 4
+      max: 128
+      reboot_required: true

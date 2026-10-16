@@ -526,6 +526,11 @@ else
 	then
 		rpm_capture start
 	fi
+	# Rotor azimuth encoder (coax_mixer)
+	if param greater -s RENC_EN 0
+	then
+		rotor_encoder start
+	fi
 	# Camera capture driver
 	if param greater -s CAM_CAP_FBACK 0
 	then

@@ -110,6 +110,13 @@ if(CONFIG_MODULES_MC_RATE_CONTROL)
 	)
 endif()
 
+if(CONFIG_MODULES_COAX_MIXER)
+	px4_add_romfs_files(
+		16010_aperocopter
+		16010_aperocopter.post
+	)
+endif()
+
 if(CONFIG_MODULES_FW_RATE_CONTROL)
 	px4_add_romfs_files(
 		# [2000, 2999] Standard planes

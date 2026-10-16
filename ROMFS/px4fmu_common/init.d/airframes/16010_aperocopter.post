@@ -1,0 +1,3 @@
+# coax_mixer replaces control_allocator (per-blade flaps need rotor azimuth from rotor_encoder)
+control_allocator stop
+coax_mixer start
