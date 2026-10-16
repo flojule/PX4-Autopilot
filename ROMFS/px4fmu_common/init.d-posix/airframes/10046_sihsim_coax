@@ -30,22 +30,39 @@ param set-default PWM_MAIN_FUNC3 202
 param set-default PWM_MAIN_FUNC4 203
 param set-default PWM_MAIN_FUNC5 204
 
-# plant has no aerodynamic damping
+# drag and damping from libplant (rotor) and the plant file (body)
 param set-default SIH_KDV 0
 param set-default SIH_KDW 0
 
-# rate loops: 461 N m cyclic flap authority (2 x 28.8 N m/deg x CM_CYC_MAX 8 deg, speed-normalized
-# by coax_mixer), same gains for 0-68 kg payload
-param set-default MC_ROLLRATE_P 0.2
-param set-default MC_ROLLRATE_I 0.1
+# rate loops: 414 N m cyclic flap authority (51.8 N m/deg both rotors x CM_CYC_MAX 8 deg at
+# CM_RPM_REF 313, held by coax_mixer's (CM_RPM_REF / Omega)^2), same gains for 0-68 kg payload;
+# roll/pitch rate P 1.0 = 414 N m per rad/s (the Python design's rate damping at 68 kg); I 1.5, limit
+# 0.8 (331 N m) hold the rotor moments of airspeed
+# attitude P 10: holds the rigid rotors' pitch-up with airspeed
+param set-default MC_ROLL_P 10
+param set-default MC_PITCH_P 10
+param set-default MC_ROLLRATE_P 1.0
+param set-default MC_ROLLRATE_I 1.5
+param set-default MC_RR_INT_LIM 0.8
 param set-default MC_ROLLRATE_D 0
-param set-default MC_PITCHRATE_P 0.2
-param set-default MC_PITCHRATE_I 0.1
+param set-default MC_PITCHRATE_P 1.0
+param set-default MC_PITCHRATE_I 1.5
+param set-default MC_PR_INT_LIM 0.8
 param set-default MC_PITCHRATE_D 0
 param set-default MC_YAWRATE_P 2.0
 param set-default MC_YAWRATE_I 0.4
-# thrust ~ rotor speed^2: hover thrust 0.11 / 0.38 / 0.64 at 0 / 34 / 68 kg (CM_RPM_MAX 750)
-param set-default MPC_THR_HOVER 0.4
+# velocity loop: integrator holds the rotor drag and flap-back of wind, D damps the gust response
+param set-default MPC_XY_VEL_I_ACC 1.2
+param set-default MPC_XY_VEL_D_ACC 0.5
+# gyro dynamic notch at 2/rev and 4/rev of the rotor (coax_mixer blade passage as ESC rpm), from
+# 2/rev 6 Hz (180 rpm, 34-68 kg); off below, where 2/rev is inside the rate loop bandwidth
+param set-default CM_NOTCH_ESC 1
+param set-default IMU_GYRO_DNF_EN 1
+param set-default IMU_GYRO_DNF_HMC 2
+param set-default IMU_GYRO_DNF_BW 2
+param set-default IMU_GYRO_DNF_MIN 3
+# thrust ~ rotor speed^2: hover thrust 0.08 / 0.28 / 0.48 at 0 / 34 / 68 kg (CM_RPM_MAX 450)
+param set-default MPC_THR_HOVER 0.48
 param set-default MPC_THR_MIN 0.05
 
 param set SIH_VEHICLE_TYPE 6

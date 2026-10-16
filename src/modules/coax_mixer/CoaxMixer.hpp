@@ -49,6 +49,8 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_motors.h>
 #include <uORB/topics/actuator_servos.h>
+#include <uORB/topics/control_allocator_status.h>
+#include <uORB/topics/esc_status.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/rotor_azimuth.h>
 #include <uORB/topics/vehicle_thrust_setpoint.h>
@@ -76,6 +78,8 @@ private:
 
 	uORB::Publication<actuator_motors_s> _motors_pub{ORB_ID(actuator_motors)};
 	uORB::Publication<actuator_servos_s> _servos_pub{ORB_ID(actuator_servos)};
+	uORB::Publication<esc_status_s> _esc_status_pub{ORB_ID(esc_status)};
+	uORB::Publication<control_allocator_status_s> _allocator_status_pub{ORB_ID(control_allocator_status)};
 
 	uORB::SubscriptionCallbackWorkItem _rotor_azimuth_sub{this, ORB_ID(rotor_azimuth)};
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
@@ -89,6 +93,7 @@ private:
 	float _thrust{0.f};           // [0, 1] upward
 	float _torque[3] {};          // normalized roll, pitch, yaw
 	float _flap_cmd[4] {};        // last flap commands [rad]
+	hrt_abstime _esc_status_last{0};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::CM_CYC_MAX>) _param_cyc_max,
@@ -98,6 +103,8 @@ private:
 		(ParamFloat<px4::params::CM_RPM_REF>) _param_rpm_ref,
 		(ParamFloat<px4::params::CM_SRV_TAU>) _param_srv_tau,
 		(ParamFloat<px4::params::CM_SRV_RATE>) _param_srv_rate,
-		(ParamFloat<px4::params::CM_AZ_OFF>) _param_az_off
+		(ParamFloat<px4::params::CM_AZ_OFF>) _param_az_off,
+		(ParamBool<px4::params::CM_NOTCH_ESC>) _param_notch_esc,
+		(ParamFloat<px4::params::CM_NOTCH_MIN>) _param_notch_min
 	)
 };

@@ -434,7 +434,9 @@ void Sih::read_motors(const float dt)
 			}
 		}
 
-		publish_esc_status();
+		if (_vehicle != VehicleType::Coaxial) { // coaxial: coax_mixer publishes the rotor blade passage (CM_NOTCH_ESC)
+			publish_esc_status();
+		}
 	}
 }
 
@@ -589,6 +591,16 @@ void Sih::generate_coaxial_forces(const float dt)
 		cmd[k] = _cm_flap_min + 0.5f * (_u[1 + k] + 1.f) * (_cm_flap_max - _cm_flap_min);
 	}
 
+	// body states from the SIH rigid body: air-relative velocity (NED), attitude, body rate
+	for (int i = 0; i < 3; i++) {
+		_plant_x(3 + i) = _v_apparent_N(i);
+		_plant_x(10 + i) = _w_B(i);
+	}
+
+	for (int i = 0; i < 4; i++) {
+		_plant_x(6 + i) = _q(i);
+	}
+
 	plant::rotor_step(_plant, _plant_x, cmd, _u[0] * _cm_omega_max, dt);
 	const plant::Wrench w = plant::rotor_wrench(_plant, _plant_x);
 	_T_B = Vector3f(w.force(0), w.force(1), w.force(2));
@@ -598,7 +610,8 @@ void Sih::generate_coaxial_forces(const float dt)
 	const Vector3f cda(_plant.cda(0), _plant.cda(1), _plant.cda(2));
 	const Vector3f drag_B = -0.5f * float(_plant.rho) * v_air_B.norm() * cda.emult(v_air_B);
 	_Fa_E = _R_N2E * (_q.rotateVector(drag_B) - _KDV * _v_apparent_N);
-	_Ma_B = -_KDW * _w_B;
+	const Vector3f drag_arm(-float(_plant.cg(0)), -float(_plant.cg(1)), float(_plant.drag_z - _plant.cg(2)));
+	_Ma_B = drag_arm.cross(drag_B) - _KDW * _w_B;
 
 	rotor_azimuth_s az{};
 	az.azimuth = static_cast<float>(std::fmod(_plant_x(14), 2.0 * M_PI));
