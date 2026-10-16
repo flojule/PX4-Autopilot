@@ -1,0 +1,60 @@
+#!/bin/sh
+#
+# @name aperocopter (coaxial, per-blade tip flaps, coax_mixer)
+#
+# @type Coaxial Helicopter
+# @class Copter
+#
+# @output Servo1 flap upper rotor blade 0 (via slip ring)
+# @output Servo2 flap upper rotor blade 180
+# @output Servo3 flap lower rotor blade 0
+# @output Servo4 flap lower rotor blade 180
+# @output Motor1 rotor speed (ESC)
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+param set-default MAV_TYPE 3
+
+# outputs (PX4IO): servos 1-4 on timers 0-1 (flap servo frame rate), motor 5; coax_mixer
+param set-default PWM_MAIN_FUNC1 201
+param set-default PWM_MAIN_FUNC2 202
+param set-default PWM_MAIN_FUNC3 203
+param set-default PWM_MAIN_FUNC4 204
+param set-default PWM_MAIN_FUNC5 101
+param set-default PWM_MAIN_TIM0 333
+param set-default PWM_MAIN_TIM1 333
+
+# rotor azimuth encoder on the upper mast (rotor_encoder): slot track FMU CH11, index track FMU CH12
+param set-default RENC_EN 1
+param set-default RENC_SLOTS 36
+param set-default PWM_AUX_FUNC11 2071
+param set-default PWM_AUX_FUNC12 2072
+
+# controller gains from SIH (10046_sihsim_coax): same vehicle model, refit on the tethered hover
+param set-default MC_ROLL_P 10
+param set-default MC_PITCH_P 10
+param set-default MC_ROLLRATE_P 1.0
+param set-default MC_ROLLRATE_I 1.5
+param set-default MC_RR_INT_LIM 0.8
+param set-default MC_ROLLRATE_D 0
+param set-default MC_PITCHRATE_P 1.0
+param set-default MC_PITCHRATE_I 1.5
+param set-default MC_PR_INT_LIM 0.8
+param set-default MC_PITCHRATE_D 0
+param set-default MC_YAWRATE_P 2.0
+param set-default MC_YAWRATE_I 0.4
+param set-default MPC_XY_VEL_I_ACC 1.2
+param set-default MPC_XY_VEL_D_ACC 0.5
+
+# gyro dynamic notch at 2/rev and 4/rev from the encoder rotor speed (coax_mixer esc_status); set
+# CM_NOTCH_ESC 0 if the ESC publishes esc_status telemetry
+param set-default CM_NOTCH_ESC 1
+param set-default IMU_GYRO_DNF_EN 1
+param set-default IMU_GYRO_DNF_HMC 2
+param set-default IMU_GYRO_DNF_BW 2
+param set-default IMU_GYRO_DNF_MIN 3
+
+# thrust ~ rotor speed^2: hover thrust 0.08 / 0.28 / 0.48 at 0 / 34 / 68 kg (CM_RPM_MAX 450)
+param set-default MPC_THR_HOVER 0.48
+param set-default MPC_THR_MIN 0.05

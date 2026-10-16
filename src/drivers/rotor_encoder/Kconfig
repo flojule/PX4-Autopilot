@@ -1,0 +1,6 @@
+menuconfig DRIVERS_ROTOR_ENCODER
+	bool "rotor_encoder"
+	default n
+	---help---
+		Optical rotor azimuth encoder (slot and index tracks on FMU capture pins) to rotor_azimuth
+		for coax_mixer (aperocopter)

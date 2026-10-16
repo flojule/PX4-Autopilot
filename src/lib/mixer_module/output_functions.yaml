@@ -71,3 +71,15 @@ functions:
         condition: "RPM_CAP_ENABLE==0"
         text: "RPM needs to be enabled via RPM_CAP_ENABLE parameter."
       exclude_from_actuator_testing: true
+    Rotor_Enc_Slot:
+      start: 2071
+      note:
+        condition: "RENC_EN==0"
+        text: "The rotor encoder needs to be enabled via RENC_EN parameter."
+      exclude_from_actuator_testing: true
+    Rotor_Enc_Index:
+      start: 2072
+      note:
+        condition: "RENC_EN==0"
+        text: "The rotor encoder needs to be enabled via RENC_EN parameter."
+      exclude_from_actuator_testing: true

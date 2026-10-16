@@ -108,7 +108,7 @@ void CoaxMixer::Run()
 		const float cyc = math::radians(_param_cyc_max.get()) * scale;
 		const float c = cyc * _torque[1];
 		const float s = -cyc * _torque[0];
-		const std::array<double, 6> u{-diff, diff, c, c, s, s};
+		const double u[6] {-diff, diff, c, c, s, s};
 		const auto cmd = plant::mix(u, az.azimuth + math::radians(_param_az_off.get()), om,
 					    _param_srv_tau.get(), math::radians(_param_srv_rate.get()));
 
