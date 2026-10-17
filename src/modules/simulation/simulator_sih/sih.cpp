@@ -585,10 +585,10 @@ void Sih::generate_force_and_torques(const float dt)
 void Sih::generate_coaxial_forces(const float dt)
 {
 	// rotor states advance with commands held over dt
-	std::array<double, 4> cmd{};
+	plant::Blades cmd{};
 
 	for (int k = 0; k < 4; k++) {
-		cmd[k] = _cm_flap_min + 0.5f * (_u[1 + k] + 1.f) * (_cm_flap_max - _cm_flap_min);
+		cmd[k] = _cm_flap_min + 0.5f * (_u[k] + 1.f) * (_cm_flap_max - _cm_flap_min);
 	}
 
 	// body states from the SIH rigid body: air-relative velocity (NED), attitude, body rate
@@ -601,7 +601,7 @@ void Sih::generate_coaxial_forces(const float dt)
 		_plant_x(6 + i) = _q(i);
 	}
 
-	plant::rotor_step(_plant, _plant_x, cmd, _u[0] * _cm_omega_max, dt);
+	plant::rotor_step(_plant, _plant_x, cmd, _u[4] * _cm_omega_max, dt);
 	const plant::Wrench w = plant::rotor_wrench(_plant, _plant_x);
 	_T_B = Vector3f(w.force(0), w.force(1), w.force(2));
 	_Mt_B = Vector3f(w.moment(0), w.moment(1), w.moment(2));

@@ -272,7 +272,7 @@ private:
 	float _u[NUM_ACTUATORS_MAX] {}; // thruster signals
 
 #if defined(SIH_COAXIAL)
-	// aperocopter coaxial: libplant rotor model; outputs 0 = motor, 1..4 = blade servos (coax_mixer)
+	// aperocopter coaxial: libplant rotor model; outputs 0..3 = blade servos, 4 = motor (coax_mixer, as on the FMU)
 	void generate_coaxial_forces(const float dt);
 	plant::Params _plant{};
 	plant::State _plant_x{plant::State::Zero()};
