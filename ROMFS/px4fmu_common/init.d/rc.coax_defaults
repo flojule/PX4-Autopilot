@@ -24,9 +24,14 @@ param set-default MC_PR_INT_LIM 0.8
 param set-default MC_PITCHRATE_D 0
 param set-default MC_YAWRATE_P 2.0
 param set-default MC_YAWRATE_I 0.4
+# yaw P 4: 20 deg step rise 0.3 s at 68 kg, 0.5 s at 0 kg (Python design 0.4-0.6 s)
+param set-default MC_YAW_P 4
 # velocity loop: integrator holds the rotor drag and flap-back of wind, D damps the gust response
 param set-default MPC_XY_VEL_I_ACC 1.2
 param set-default MPC_XY_VEL_D_ACC 0.5
+# altitude: 1 m step rise 0.8 s at 68 kg, 1.0 s at 0 kg, as the Python design (0.75-0.94 s)
+param set-default MPC_Z_P 1.5
+param set-default MPC_Z_VEL_P_ACC 6
 
 # gyro dynamic notch at 2/rev and 4/rev of the rotor (coax_mixer blade passage as ESC rpm), from
 # 2/rev 6 Hz (180 rpm, 34-68 kg); off below, where 2/rev is inside the rate loop bandwidth.
