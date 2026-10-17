@@ -57,6 +57,7 @@ bool CoaxMixer::init()
 		return false;
 	}
 
+	ScheduleDelayed(AZIMUTH_TIMEOUT);
 	return true;
 }
 
@@ -96,81 +97,101 @@ void CoaxMixer::Run()
 		}
 	}
 
+	const hrt_abstime now = hrt_absolute_time();
 	rotor_azimuth_s az;
 
 	if (_rotor_azimuth_sub.update(&az)) {
-		// hub moment: M_x = -K (d1s_u + d1s_l), M_y = K (d1c_u + d1c_l), yaw = Q_l - Q_u; flap moment and
-		// torque per flap scale with Omega^2: normalize to CM_RPM_REF with the measured rotor speed
-		const float om_ref = _param_rpm_ref.get() * M_TWOPI_F / 60.f;
-		const float om = math::max(az.speed, 0.25f * om_ref);
-		const float scale = om_ref * om_ref / (om * om);
-		const float diff = math::radians(_param_diff_max.get()) * _torque[2] * scale;
-		const float cyc = math::radians(_param_cyc_max.get()) * scale;
-		const float c = cyc * _torque[1];
-		const float s = -cyc * _torque[0];
-		const double u[6] {-diff, diff, c, c, s, s};
-		const auto cmd = plant::mix(u, az.azimuth + math::radians(_param_az_off.get()), om,
-					    _param_srv_tau.get(), math::radians(_param_srv_rate.get()));
+		_azimuth_last = az.timestamp;
+		mix(az.azimuth, az.speed, az.valid, az.timestamp, now);
 
-		const float fmin = math::radians(_param_flap_min.get());
-		const float fmax = math::radians(_param_flap_max.get());
-		actuator_servos_s servos{};
-		bool clipped = false;
-
-		for (int k = 0; k < 4; k++) {
-			_flap_cmd[k] = static_cast<float>(cmd[k]);
-			clipped |= (_flap_cmd[k] < fmin) || (_flap_cmd[k] > fmax);
-			servos.control[k] = math::constrain(2.f * (_flap_cmd[k] - fmin) / (fmax - fmin) - 1.f, -1.f, 1.f);
-		}
-
-		// rate controller anti-windup (replaces control_allocator's): flap range reached -> no further
-		// integration along the torque setpoint
-		control_allocator_status_s status{};
-		status.torque_setpoint_achieved = !clipped;
-		status.thrust_setpoint_achieved = true;
-
-		for (int i = 0; i < 3; i++) {
-			status.unallocated_torque[i] = clipped ? _torque[i] : 0.f;
-		}
-
-		for (int k = 4; k < actuator_servos_s::NUM_CONTROLS; k++) {
-			servos.control[k] = NAN;
-		}
-
-		actuator_motors_s motors{};
-
-		for (int k = 0; k < actuator_motors_s::NUM_CONTROLS; k++) {
-			motors.control[k] = NAN;
-		}
-
-		if (_armed) {
-			motors.control[0] = sqrtf(_thrust); // fixed blade pitch: thrust ~ Omega^2, output 1 = CM_RPM_MAX
-		}
-
-		const hrt_abstime now = hrt_absolute_time();
-		servos.timestamp_sample = motors.timestamp_sample = az.timestamp;
-		servos.timestamp = motors.timestamp = now;
-		_servos_pub.publish(servos);
-		_motors_pub.publish(motors);
-		status.timestamp = now;
-		_allocator_status_pub.publish(status);
-
-		if (_param_notch_esc.get() && now >= _esc_status_last + 20_ms) {
-			// blade passage (2/rev) as ESC 0 rpm: gyro dynamic notch (IMU_GYRO_DNF_EN ESC RPM) on its harmonics;
-			// below CM_NOTCH_MIN reported offline (notch times out): there the notch sits inside the rate loop
-			const float blade_hz = az.speed / static_cast<float>(M_PI);
-			const bool on = blade_hz >= _param_notch_min.get();
-			esc_status_s esc{};
-			esc.timestamp = esc.esc[0].timestamp = now;
-			esc.esc_count = 1;
-			esc.esc_online_flags = on ? 1 : 0;
-			esc.esc[0].esc_rpm = on ? static_cast<int32_t>(blade_hz * 60.f) : 0;
-			_esc_status_pub.publish(esc);
-			_esc_status_last = now;
-		}
+	} else if (now >= _azimuth_last + AZIMUTH_TIMEOUT) {
+		// no rotor azimuth (encoder lost): outputs at the watchdog rate, no cyclic, flap gains at CM_RPM_REF
+		mix(0.f, 0.f, false, now, now);
 	}
 
+	// watchdog: runs again if rotor_azimuth stops
+	ScheduleDelayed(AZIMUTH_TIMEOUT);
+
 	perf_end(_loop_perf);
+}
+
+void CoaxMixer::mix(float azimuth, float speed, bool azimuth_valid, hrt_abstime timestamp_sample, hrt_abstime now)
+{
+	// hub moment: M_x = -K (d1s_u + d1s_l), M_y = K (d1c_u + d1c_l), yaw = Q_l - Q_u; flap moment and
+	// torque per flap scale with Omega^2: normalize to CM_RPM_REF with the measured rotor speed
+	const float om_ref = _param_rpm_ref.get() * M_TWOPI_F / 60.f;
+	const float om = (speed > 0.f) ? math::max(speed, 0.25f * om_ref) : om_ref;
+	const float scale = om_ref * om_ref / (om * om);
+	const float diff = math::radians(_param_diff_max.get()) * _torque[2] * scale;
+	// cyclic needs the blade azimuth: zero until the encoder is referenced and while it is lost
+	_cyclic_enabled = azimuth_valid;
+	const float cyc = azimuth_valid ? math::radians(_param_cyc_max.get()) * scale : 0.f;
+	const float c = cyc * _torque[1];
+	const float s = -cyc * _torque[0];
+	const double u[6] {-diff, diff, c, c, s, s};
+	const auto cmd = plant::mix(u, azimuth + math::radians(_param_az_off.get()), om,
+				    _param_srv_tau.get(), math::radians(_param_srv_rate.get()));
+
+	const float fmin = math::radians(_param_flap_min.get());
+	const float fmax = math::radians(_param_flap_max.get());
+	actuator_servos_s servos{};
+	bool clipped = false;
+
+	for (int k = 0; k < 4; k++) {
+		_flap_cmd[k] = static_cast<float>(cmd[k]);
+		clipped |= (_flap_cmd[k] < fmin) || (_flap_cmd[k] > fmax);
+		servos.control[k] = math::constrain(2.f * (_flap_cmd[k] - fmin) / (fmax - fmin) - 1.f, -1.f, 1.f);
+	}
+
+	for (int k = 4; k < actuator_servos_s::NUM_CONTROLS; k++) {
+		servos.control[k] = NAN;
+	}
+
+	// rate controller anti-windup (replaces control_allocator's): flap range reached, or no cyclic -> no
+	// further integration along the torque setpoint
+	control_allocator_status_s status{};
+	status.torque_setpoint_achieved = !clipped && azimuth_valid;
+	status.thrust_setpoint_achieved = true;
+
+	for (int i = 0; i < 3; i++) {
+		status.unallocated_torque[i] = clipped ? _torque[i] : 0.f;
+	}
+
+	if (!azimuth_valid) {
+		status.unallocated_torque[0] = _torque[0];
+		status.unallocated_torque[1] = _torque[1];
+	}
+
+	actuator_motors_s motors{};
+
+	for (int k = 0; k < actuator_motors_s::NUM_CONTROLS; k++) {
+		motors.control[k] = NAN;
+	}
+
+	if (_armed) {
+		motors.control[0] = sqrtf(_thrust); // fixed blade pitch: thrust ~ Omega^2, output 1 = CM_RPM_MAX
+	}
+
+	servos.timestamp_sample = motors.timestamp_sample = timestamp_sample;
+	servos.timestamp = motors.timestamp = now;
+	_servos_pub.publish(servos);
+	_motors_pub.publish(motors);
+	status.timestamp = now;
+	_allocator_status_pub.publish(status);
+
+	if (_param_notch_esc.get() && now >= _esc_status_last + 20_ms) {
+		// blade passage (2/rev) as ESC 0 rpm: gyro dynamic notch (IMU_GYRO_DNF_EN ESC RPM) on its harmonics;
+		// below CM_NOTCH_MIN reported offline (notch times out): there the notch sits inside the rate loop
+		const float blade_hz = speed / static_cast<float>(M_PI);
+		const bool on = blade_hz >= _param_notch_min.get();
+		esc_status_s esc{};
+		esc.timestamp = esc.esc[0].timestamp = now;
+		esc.esc_count = 1;
+		esc.esc_online_flags = on ? 1 : 0;
+		esc.esc[0].esc_rpm = on ? static_cast<int32_t>(blade_hz * 60.f) : 0;
+		_esc_status_pub.publish(esc);
+		_esc_status_last = now;
+	}
 }
 
 int CoaxMixer::task_spawn(int argc, char *argv[])
@@ -197,8 +218,9 @@ int CoaxMixer::task_spawn(int argc, char *argv[])
 
 int CoaxMixer::print_status()
 {
-	PX4_INFO("armed %d, thrust %.3f, torque %.3f %.3f %.3f", _armed, (double)_thrust, (double)_torque[0],
-		 (double)_torque[1], (double)_torque[2]);
+	PX4_INFO("armed %d, thrust %.3f, torque %.3f %.3f %.3f, cyclic %s", _armed, (double)_thrust,
+		 (double)_torque[0], (double)_torque[1], (double)_torque[2],
+		 _cyclic_enabled ? "on" : "off (rotor azimuth invalid or lost)");
 	PX4_INFO("flap cmd [deg] %.2f %.2f %.2f %.2f", (double)math::degrees(_flap_cmd[0]),
 		 (double)math::degrees(_flap_cmd[1]), (double)math::degrees(_flap_cmd[2]), (double)math::degrees(_flap_cmd[3]));
 	perf_print_counter(_loop_perf);
@@ -223,6 +245,8 @@ Coaxial per-blade tip-flap mixer (aperocopter; fixed blade pitch). Replaces cont
 setpoint to rotor speed (motor 1, thrust ~ Omega^2), yaw torque to differential flap, roll/pitch torque
 to cyclic flap, then 4 flap commands phased by the rotor azimuth (rotor_azimuth) with servo lag
 compensation. Flap terms are scaled by (CM_RPM_REF / Omega)^2 for a speed-independent moment.
+Cyclic is zero while rotor_azimuth is invalid (encoder not yet referenced to its index, rotor stopped)
+or lost (no update for 20 ms; outputs then continue at 50 Hz).
 Publishes control_allocator_status (flap range reached: rate loop anti-windup) and, with CM_NOTCH_ESC,
 the blade passage rate as esc_status rpm for the gyro dynamic notch at 2/rev and 4/rev.
 )DESCR_STR");
