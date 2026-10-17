@@ -96,10 +96,17 @@ private:
 		hrt_abstime delay_us{kDefaultDelay};
 		float baseline_length{0.f};  // of the antenna baseline the heading is measured along (m)
 		float heading_offset{0.f};   // yaw of the baseline in the body frame (rad)
+		bool heading_enabled{false}; // SENS_GNSSn_HDG isn't Disabled
 	};
 
 	// SENS_GNSSn_* slot for a receiver, by device_id or (when no IDs are configured) by sensor_gnss instance
 	const GpsParamSlot *findParamSlot(uint32_t device_id, int instance) const;
+
+	// sensor_gnss instance of the receiver SENS_GNSS_PRIME designates, -1 for none or not yet published
+	int resolvePreferredInstance() const;
+
+	// SENS_GNSS_PRIME names a receiver, whether or not it has published yet
+	bool hasConfiguredPreference() const;
 
 #if defined(CONFIG_SENSORS_VEHICLE_GNSS_HEADING)
 	struct HeadingSample {
@@ -153,6 +160,7 @@ private:
 	} _heading_source{};
 
 	bool _heading_unconfigured_reported{false};
+	bool _heading_no_baseline_reported{false};
 #endif // CONFIG_SENSORS_VEHICLE_GNSS_HEADING
 
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
@@ -163,6 +171,9 @@ private:
 	uint32_t _receiver_device_id[GPS_MAX_RECEIVERS] {};
 	hrt_abstime _receiver_timestamp[GPS_MAX_RECEIVERS] {};
 	uint32_t _selected_device_id{0};
+	int8_t _preferred_instance{-1};
+	uint8_t _first_publication[GPS_MAX_RECEIVERS] {}; ///< 1 for the first receiver to publish, 2 for the next, 0 before
+	uint8_t _receivers_published{0};
 
 	// The checks run the strict thresholds while disarmed on the ground and the drift checks only at rest
 	bool _armed{false};

@@ -25744,7 +25744,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ## Circuit Breaker
 
-<div class="param-group" style="--param-count: 7">
+<div class="param-group" style="--param-count: 6">
 
 <div class="param">
 
@@ -25779,22 +25779,6 @@ and takeoff failure detection safety logic.
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
 &check; | 0 | 121212 |  | 121212 |  | &nbsp;
-
-</div>
-
-<div class="param">
-
-### CBRK_IO_SAFETY (`INT32`) {#CBRK_IO_SAFETY}
-
-Circuit breaker for IO safety.
-
-Setting this parameter to 22027 will disable IO safety.
-WARNING: ENABLING THIS CIRCUIT BREAKER IS AT OWN RISK
-
-
-Reboot | minValue | maxValue | increment | default | unit | Read-Only
---- | --- | --- | --- | --- | --- | ---
-&nbsp; | 0 | 22027 |  | 22027 |  | &nbsp;
 
 </div>
 
@@ -25874,7 +25858,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ## Commander
 
-<div class="param-group" style="--param-count: 74">
+<div class="param-group" style="--param-count: 75">
 
 <div class="param">
 
@@ -26722,7 +26706,7 @@ the estimated time it takes to reach the return destination.
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
-&nbsp; |  |  | 1 | 0 |  | &nbsp;
+&nbsp; |  |  | 1 | 1 |  | &nbsp;
 
 </div>
 
@@ -26753,10 +26737,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### COM_FORCE_SAFETY (`INT32`) {#COM_FORCE_SAFETY}
 
-Enable force safety.
-
-Force safety when the vehicle disarms
-
+Re-enable safety when the vehicle disarms.
 
 **Values:**
 
@@ -26779,6 +26760,7 @@ Action the system takes when a GNSS failure is detected during flight.
 Triggers when the active GNSS count drops below SYS_HAS_NUM_GNSS (disabled
 when SYS_HAS_NUM_GNSS=0), or when two receivers report positions inconsistent
 with their reported accuracy and SYS_HAS_NUM_GNSS=2 (otherwise warning only).
+The reported accuracy of each receiver is floored with EKF2_GPS_P_NOISE.
 Any value above Warning also blocks arming.
 
 
@@ -26788,6 +26770,7 @@ Any value above Warning also blocks arming.
 - `1`: Return
 - `2`: Land
 - `3`: Terminate
+- `4`: Warning, block arming
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -27232,11 +27215,15 @@ Condition to enter prearmed mode.
 Condition to enter the prearmed state, an intermediate state between disarmed and armed
 in which non-throttling actuators are active.
 
+0: Never prearmed.
+1: Prearmed when safety is off (COM_SAFETY_MODE)
+2: Always prearmed.
+
 
 **Values:**
 
 - `0`: Disabled
-- `1`: Safety button
+- `1`: When safety off
 - `2`: Always
 
 
@@ -27351,6 +27338,34 @@ Ensure the value is not set lower than the update interval of the RC or Joystick
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
 &nbsp; | 0 | 35 | 0.1 | 0.5 | s | &nbsp;
+
+</div>
+
+<div class="param">
+
+### COM_SAFETY_MODE (`INT32`) {#COM_SAFETY_MODE}
+
+Condition to turn safety off.
+
+Vehicle arming is prevented for as long as safety is on.
+
+0: Always off.
+1: Safety can be turned off either by pressing a physical safety switch, or by sending a MAV_CMD_DO_SET_SAFETY_SWITCH_STATE command.
+2: Safety can only be turned off by pressing a physical safety switch. MAV_CMD_DO_SET_SAFETY_SWITCH_STATE commands are rejected.
+3: Safety can only be turned off by sending a MAV_CMD_DO_SET_SAFETY_SWITCH_STATE command. Any physical switch is ignored.
+
+
+**Values:**
+
+- `0`: Always off
+- `1`: Safety switch (physical or virtual via MAVLink)
+- `2`: Physical safety switch only
+- `3`: MAVLink only
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&check; |  |  |  | 0 |  | &nbsp;
 
 </div>
 
@@ -28594,7 +28609,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ## EKF2
 
-<div class="param-group" style="--param-count: 153">
+<div class="param-group" style="--param-count: 155">
 
 <div class="param">
 
@@ -30480,6 +30495,36 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 <div class="param">
 
+### EKF2_REQ_GPS_H (`FLOAT`) {#EKF2_REQ_GPS_H}
+
+GNSS fusion restart and heading reset wait.
+
+After EKF2 stops GNSS velocity and position fusion, it restarts it only after this time while disarmed on the ground, and after a tenth of it, at least 1 s, otherwise. After a GNSS heading failure, a yaw reset to the GNSS heading also waits this long. The GNSS checks use GNSS_REQ_TIME.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; | 0.1 |  |  | 10.0 | s | &nbsp;
+
+</div>
+
+<div class="param">
+
+### EKF2_REQ_SACC (`FLOAT`) {#EKF2_REQ_SACC}
+
+GNSS speed accuracy for vertical velocity and yaw estimator.
+
+Below this speed accuracy EKF2 trusts the GNSS vertical velocity while the accelerometer clips, and feeds the GNSS velocity to the EKF-GSF yaw estimator. The GNSS checks use GNSS_REQ_SACC.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; | 0.5 | 5.0 |  | 0.5 | m/s | &nbsp;
+
+</div>
+
+<div class="param">
+
 ### EKF2_RNGBC_CTRL (`INT32`) {#EKF2_RNGBC_CTRL}
 
 Ranging beacon fusion control.
@@ -31095,7 +31140,10 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Maximum manual pitch angle.
 
-Applies to both directions in all manual modes with attitude stabilization but without altitude control
+Pitch angle commanded by full stick deflection, relative to FW_PSP_OFF (the centred-stick pitch).
+The resulting pitch setpoint is additionally limited to this angle around level,
+so with a non-zero FW_PSP_OFF the range is not symmetric.
+Applies in all manual modes with attitude stabilization but without altitude control.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -31141,9 +31189,12 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Pitch setpoint offset (pitch at level flight).
 
-An airframe specific offset of the pitch setpoint in degrees, the value is
-added to the pitch setpoint and should correspond to the pitch at
-typical cruise speed of the airframe.
+Pitch angle of the body x-axis above the horizon in level flight at trim airspeed (FW_AIRSPD_TRIM).
+
+The altitude and airspeed controller (TECS) uses it as the pitch at zero climb angle,
+and in Stabilized mode the centred pitch stick commands it.
+Pitch setpoints and pitch limits set elsewhere, for example FW_P_LIM_MIN and FW_P_LIM_MAX,
+are absolute and do not include it.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -31439,10 +31490,12 @@ Landing flare altitude (relative to landing altitude).
 
 NOTE: max(FW_LND_FLALT, FW_LND_FL_TIME * |z-velocity|) is taken as the flare altitude
 
+Set FW_LND_FLALT or FW_LND_FL_TIME to -1 to disable the flare (land on the glide slope at landing airspeed).
+
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
-&nbsp; | 0.0 |  | 0.5 | 0.5 | m | &nbsp;
+&nbsp; | -1.0 |  | 0.5 | 0.5 | m | &nbsp;
 
 </div>
 
@@ -31450,7 +31503,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### FW_LND_FL_PMAX (`FLOAT`) {#FW_LND_FL_PMAX}
 
-Flare, maximum pitch.
+Flare, maximum absolute pitch.
 
 Maximum pitch during landing flare.
 
@@ -31465,7 +31518,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### FW_LND_FL_PMIN (`FLOAT`) {#FW_LND_FL_PMIN}
 
-Flare, minimum pitch.
+Flare, minimum absolute pitch.
 
 Minimum pitch during landing flare.
 
@@ -31502,10 +31555,12 @@ to trigger the flare.
 
 NOTE: max(FW_LND_FLALT, FW_LND_FL_TIME * descent rate) is taken as the flare altitude
 
+Set FW_LND_FLALT or FW_LND_FL_TIME to -1 to disable the flare (land on the glide slope at landing airspeed).
+
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
-&nbsp; | 0.1 | 5.0 | 0.1 | 1.0 | s | &nbsp;
+&nbsp; | -1.0 | 5.0 | 0.1 | 1.0 | s | &nbsp;
 
 </div>
 
@@ -31850,7 +31905,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### FW_TKO_PITCH_MIN (`FLOAT`) {#FW_TKO_PITCH_MIN}
 
-Minimum pitch during takeoff.
+Minimum absolute pitch during takeoff.
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
@@ -31921,7 +31976,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### FW_P_LIM_MAX (`FLOAT`) {#FW_P_LIM_MAX}
 
-Maximum pitch angle setpoint.
+Maximum absolute pitch angle setpoint.
 
 Applies in any altitude controlled flight mode.
 
@@ -31936,7 +31991,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### FW_P_LIM_MIN (`FLOAT`) {#FW_P_LIM_MIN}
 
-Minimum pitch angle setpoint.
+Minimum absolute pitch angle setpoint.
 
 Applies in any altitude controlled flight mode.
 
@@ -32052,6 +32107,9 @@ Adjusts the amount of weighting that the pitch control
 applies to speed vs height errors.
 0 -> control height only
 2 -> control speed only (gliders)
+Up to a weight of 1, pitch only trades height for speed up to trim airspeed;
+accelerating above trim is left to the throttle. Between 1 and 2, pitch
+increasingly tracks airspeed setpoints above trim as well.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -32975,6 +33033,7 @@ Chose source for manual setting of flaps in manual flight modes.
 - `4`: Aux4
 - `5`: Aux5
 - `6`: Flaps channel
+- `7`: Aux6
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -33233,6 +33292,7 @@ Chose source for manual setting of spoilers in manual flight modes.
 - `4`: Aux3
 - `5`: Aux4
 - `6`: Aux5
+- `7`: Aux6
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -34452,7 +34512,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ## Geofence
 
-<div class="param-group" style="--param-count: 4">
+<div class="param-group" style="--param-count: 5">
 
 <div class="param">
 
@@ -34477,6 +34537,27 @@ which will kill the vehicle on violation of the fence.
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
 &nbsp; | 0 | 5 |  | 2 |  | &nbsp;
+
+</div>
+
+<div class="param">
+
+### GF_AVOID_NODES (`INT32`) {#GF_AVOID_NODES}
+
+Max graph nodes for geofence avoidance in Return.
+
+Maximum number of geofence vertices the Return geofence avoidance planner can use.
+Circles use 8 vertices each, polygons their vertex count plus extra vertices for sharp corners.
+If the fence needs more vertices, Return flies directly and ignores the geofence.
+Replanning time (on geofence / safety margin change) is cubic, RAM usage quadratic in this number
+(about 2 * N^2 bytes, e.g. 20 kB for 100 nodes).
+The maximum of 200 is sufficient for any fence that can be stored.
+Set to 0 to disable geofence avoidance in Return.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&check; | 0 | 200 |  | 100 |  | &nbsp;
 
 </div>
 
@@ -41792,10 +41873,9 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### NAV_ACC_RAD (`FLOAT`) {#NAV_ACC_RAD}
 
-Acceptance Radius.
+Acceptance radius.
 
-Default acceptance radius, overridden by acceptance radius of waypoint if set.
-For fixed-wing and rovers, the high level controllers output their own acceptance radius. Those values are used instead only when above this parameter.
+Overridden by a waypoint's own acceptance radius, if set. For fixed-wing and rovers, the controller's acceptance radius is used instead when it is larger.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -41825,10 +41905,9 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### NAV_FW_ALTL_RAD (`FLOAT`) {#NAV_FW_ALTL_RAD}
 
-FW Altitude Acceptance Radius before a landing.
+FW Altitude acceptance radius before landing.
 
-Altitude acceptance used for the last waypoint before a fixed-wing landing. This is usually smaller
-than the standard vertical acceptance because close to the ground higher accuracy is required.
+FW acceptance alt for last waypoint before landing. Usually smaller than NAV_FW_ALT_RAD; accuracy matters more near the ground.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -41841,10 +41920,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### NAV_FW_ALT_RAD (`FLOAT`) {#NAV_FW_ALT_RAD}
 
-FW Altitude Acceptance Radius.
-
-Acceptance radius for fixedwing altitude.
-
+FW Altitude acceptance radius.
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
@@ -41856,12 +41932,9 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### NAV_LOITER_RAD (`FLOAT`) {#NAV_LOITER_RAD}
 
-Loiter radius (FW only).
+FW Loiter radius.
 
-Default value of loiter radius in fixed-wing mode (e.g. for Loiter mode).
-
-The direction of the loiter can be set via the sign: A positive value for
-clockwise, negative for counter-clockwise.
+Default for fixed-wing loiters, e.g. in Hold mode. Positive values loiter clockwise, negative values counter-clockwise.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -41876,10 +41949,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Loiter at last GCS heartbeat position on data link loss.
 
-When the data link is lost and this setting is enabled,
-the vehicle will loiter at the position where the last GCS
-heartbeat was received rather than at its current position.
-Only applies to Hold mode during failsafe actions.
+If disabled, the vehicle loiters at its current position. Only applies to Hold mode during failsafe actions.
 
 
 **Values:**
@@ -41897,10 +41967,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### NAV_MC_ALT_RAD (`FLOAT`) {#NAV_MC_ALT_RAD}
 
-MC Altitude Acceptance Radius.
-
-Acceptance radius for multicopter altitude.
-
+MC Altitude acceptance radius.
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
@@ -41914,12 +41981,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Minimum height above ground during Mission and Return.
 
-Minimum height above ground the vehicle is allowed to descend to during Mission and Return,
-excluding landing commands.
-Requires a distance sensor to be set up.
-Note: only prevents the vehicle from descending further, but does not force it to climb.
-
-Set to a negative value to disable.
+Minimum height AGL in Return and Mission (excluding landing commands). Requires a distance sensor. Stops further descent but doesn't force a climb. Set to -1 to disable.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -41932,12 +41994,9 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### NAV_MIN_LTR_ALT (`FLOAT`) {#NAV_MIN_LTR_ALT}
 
-Minimum Loiter altitude.
+Minimum loiter altitude.
 
-This is the minimum altitude above Home the system will always obey in Loiter (Hold) mode if switched into this
-mode without specifying an altitude (e.g. through Loiter switch on RC).
-Doesn't affect Loiters that are part of Missions or that are entered through a reposition setpoint ("Go to").
-Set to a negative value to disable.
+Altitude above Home used when Hold mode is entered without an altitude, e.g. from an RC switch. Doesn't apply to mission loiters or reposition ("Go to") setpoints. Set to -1 to disable.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -41950,10 +42009,9 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### NAV_TRAFF_AVOID (`INT32`) {#NAV_TRAFF_AVOID}
 
-Set traffic avoidance action.
+Traffic avoidance action (Xtrack only).
 
-Action requested for a crosstrack traffic conflict.
-Runtime changes apply on later conflict level transitions.
+Changes take effect at the next cross-track conflict level transition.
 
 
 **Values:**
@@ -44730,7 +44788,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Max motor RPM for neural network normalization.
 
-The maximum RPM of the motors. Used to normalize the output of the neural network
+The maximum RPM of the motors. Used to normalize the output of the neural network. Has to be above MC_NN_MIN_RPM. Together with MC_NN_THRST_COEF it sets the part of the action range the motor can reproduce, which the module reports at startup.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -44745,7 +44803,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Min motor RPM for neural network normalization.
 
-The minimum RPM of the motors. Used to normalize the output of the neural network
+The minimum RPM of the motors. Used to normalize the output of the neural network. Actions that ask for less than this idle the motor.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -44765,7 +44823,7 @@ Thrust coefficient of the motors. Used to normalize the output of the neural net
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
-&nbsp; | 0.0 | 5.0 |  | 1.2 |  | &nbsp;
+&nbsp; | 0.01 | 5.0 |  | 1.2 |  | &nbsp;
 
 </div>
 
@@ -45335,8 +45393,8 @@ Select your RC input protocol or auto to scan.
 - `1`: PPM
 - `2`: SBUS
 - `3`: DSM
-- `4`: ST24
-- `5`: SUMD
+- `4`: SUMD
+- `5`: ST24
 - `6`: CRSF
 - `7`: GHST
 
@@ -47860,8 +47918,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Force VTOL approach landing on Return.
 
-Only consider home/rally points as return destinations if they have a VTOL approach loiter.
-A VTOL approach loiter is a MAV_CMD_NAV_LOITER_TO_ALT item with finite position and altitude.
+Only home and rally points with a VTOL approach loiter (a MAV_CMD_NAV_LOITER_TO_ALT item with finite position and altitude) are used as return destinations.
 
 
 **Values:**
@@ -47881,8 +47938,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Half-angle of the return mode altitude cone.
 
-Defines the half-angle of a cone centered around the destination position that
-affects the altitude at which the vehicle returns.
+Half-angle of a cone centered around the destination position. Affects the altitude at which the vehicle returns.
 
 
 **Values:**
@@ -47907,9 +47963,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Return mode loiter altitude.
 
-Descend to this altitude (above destination position) after return, and wait for time defined in RTL_LAND_DELAY.
-Land (i.e. slowly descend) from this altitude if autolanding allowed.
-VTOLs do transition to hover in this altitude above the landing point.
+After returning, the vehicle descends to this altitude above the destination and waits RTL_LAND_DELAY, then lands if autolanding is allowed. VTOLs transition to hover at this altitude.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -47924,8 +47978,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Return mode delay.
 
-Delay before landing (after initial descent) in Return mode.
-If set to -1 the system will not land but loiter at RTL_DESCEND_ALT.
+Delay after the descent to RTL_DESCEND_ALT, before landing. Set to -1 to loiter at RTL_DESCEND_ALT without landing.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -47940,7 +47993,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Loiter radius for return descent.
 
-Set the radius for loitering to a safe altitude for VTOL transition.
+Default loiter radius for descent to RTL_DESCEND_ALT if not set in landing approach. Set to safe altitude for VTOL transitions.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -47955,10 +48008,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Min distance for return cone altitude calculation.
 
-Horizontal radius from return point within which special rules for return mode apply
-
-The return altitude will be calculated based on RTL_CONE_ANG parameter.
-The yaw setpoint will switch to the one defined by corresponding waypoint.
+Within this horizontal distance of the destination, the return altitude comes from RTL_CONE_ANG and the yaw setpoint switches to the destination's yaw.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -47973,8 +48023,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Return precision land mode.
 
-Use precision landing during the landing phase of Return mode.
-This setting does not apply for return destinations planned as part of a mission.
+Doesn't apply to return destinations planned in a mission.
 
 
 **Values:**
@@ -47996,9 +48045,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Return mode return altitude.
 
-Default minimum altitude above destination (e.g. home, safe point, landing pattern) for return flight.
-The vehicle will climb to this altitude when Return mode is engaged, unless it currently is flying higher already.
-This is affected by RTL_MIN_DIST and RTL_CONE_ANG.
+Minimum altitude above the destination (home, rally point or landing pattern) during return. The vehicle climbs to it unless already higher. Adjusted by RTL_MIN_DIST and RTL_CONE_ANG.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -48013,8 +48060,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Return time estimate safety margin factor.
 
-Safety factor that is used to scale the actual return time estimate.
-Time with margin = RTL_TIME_FACTOR * time + RTL_TIME_MARGIN
+Time with margin = RTL_TIME_FACTOR * time + RTL_TIME_MARGIN.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -48029,8 +48075,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Return time estimate safety margin offset.
 
-Margin that is added to the time estimate, after it has already been scaled
-Time with margin = RTL_TIME_FACTOR * time + RTL_TIME_MARGIN
+Time with margin = RTL_TIME_FACTOR * time + RTL_TIME_MARGIN.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -48774,7 +48819,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### RWTO_PSP (`FLOAT`) {#RWTO_PSP}
 
-Pitch setpoint during taxi / before rotation.
+Absolute pitch setpoint during taxi / before rotation.
 
 Pitch setpoint during taxi / before takeoff rotation airspeed is reached
 
@@ -49249,7 +49294,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ## Sensor Calibration
 
-<div class="param-group" style="--param-count: 151">
+<div class="param-group" style="--param-count: 157">
 
 <div class="param">
 
@@ -50156,6 +50201,96 @@ Barometer 3 priority.
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
 &nbsp; |  |  |  | -1 |  | &nbsp;
+
+</div>
+
+<div class="param">
+
+### CAL_DPRES0_ID (`INT32`) {#CAL_DPRES0_ID}
+
+Differential pressure sensor 0 calibration device ID.
+
+Device ID of the differential pressure sensor this calibration applies to.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; |  |  |  | 0 |  | &nbsp;
+
+</div>
+
+<div class="param">
+
+### CAL_DPRES0_OFF (`FLOAT`) {#CAL_DPRES0_OFF}
+
+Differential pressure sensor 0 offset.
+
+The zero-reading of this differential pressure sensor, in Pascal.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; |  |  |  | 0.0 |  | &nbsp;
+
+</div>
+
+<div class="param">
+
+### CAL_DPRES1_ID (`INT32`) {#CAL_DPRES1_ID}
+
+Differential pressure sensor 1 calibration device ID.
+
+Device ID of the differential pressure sensor this calibration applies to.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; |  |  |  | 0 |  | &nbsp;
+
+</div>
+
+<div class="param">
+
+### CAL_DPRES1_OFF (`FLOAT`) {#CAL_DPRES1_OFF}
+
+Differential pressure sensor 1 offset.
+
+The zero-reading of this differential pressure sensor, in Pascal.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; |  |  |  | 0.0 |  | &nbsp;
+
+</div>
+
+<div class="param">
+
+### CAL_DPRES2_ID (`INT32`) {#CAL_DPRES2_ID}
+
+Differential pressure sensor 2 calibration device ID.
+
+Device ID of the differential pressure sensor this calibration applies to.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; |  |  |  | 0 |  | &nbsp;
+
+</div>
+
+<div class="param">
+
+### CAL_DPRES2_OFF (`FLOAT`) {#CAL_DPRES2_OFF}
+
+Differential pressure sensor 2 offset.
+
+The zero-reading of this differential pressure sensor, in Pascal.
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&nbsp; |  |  |  | 0.0 |  | &nbsp;
 
 </div>
 
@@ -52027,9 +52162,12 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ### SENS_DPRES_OFF (`FLOAT`) {#SENS_DPRES_OFF}
 
-Differential pressure sensor offset.
+Differential pressure sensor offset of the first airspeed sensor.
 
-The offset (zero-reading) in Pascal
+The offset (zero-reading) in Pascal of the sensor holding calibration slot 0.
+
+Kept as a mirror of CAL_DPRES0_OFF so that ground stations can still detect whether
+airspeed has been calibrated. The firmware applies CAL_DPRESx_OFF, not this value.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -53155,12 +53293,11 @@ IMU gyro FFT length.
 - `256`: 256
 - `512`: 512
 - `1024`: 1024
-- `4096`: 4096
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
-&check; |  |  |  | 512 | Hz | &nbsp;
+&check; |  |  |  | 512 |  | &nbsp;
 
 </div>
 
@@ -56106,8 +56243,8 @@ The secondary instance is then only used if the primary one times out.
 
 To select a DroneCAN GPS, set this to the node ID.
 
-The primary receiver is reported in the GPS_RAW_INT MAVLink
-message and the secondary in GPS2_RAW.
+GPS_RAW_INT reports the preferred receiver, or without one the first receiver
+to publish, and GPS2_RAW the other one. Neither follows the selection.
 
 
 
@@ -58541,7 +58678,42 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ## Simulation
 
-<div class="param-group" style="--param-count: 8">
+<div class="param-group" style="--param-count: 9">
+
+<div class="param">
+
+### SIM_GZ_EC_SIGNED (`INT32`) {#SIM_GZ_EC_SIGNED}
+
+Signed command for non-motor ESC channels.
+
+For motors, use CA_R_REV; bits set here for motor channels are ignored. Select simulated ESC channels assigned a non-motor function (e.g. Peripheral via Actuator Set or Servo) to send values from -MAX (full reverse) to +MAX (full forward), with 0 as neutral. For signed channels, keep DISARMED at 0, set MIN to 1, and use FAILSAFE 0 for neutral failsafe behavior. Failsafe values use the same MIN/MAX-to-signed mapping as normal outputs. Mirrors UAVCAN_EC_SIGNED.
+
+
+**Bitmask:**
+
+- `0`: ESC1
+- `1`: ESC2
+- `2`: ESC3
+- `3`: ESC4
+- `4`: ESC5
+- `5`: ESC6
+- `6`: ESC7
+- `7`: ESC8
+- `8`: ESC9
+- `9`: ESC10
+- `10`: ESC11
+- `11`: ESC12
+- `12`: ESC13
+- `13`: ESC14
+- `14`: ESC15
+- `15`: ESC16
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&check; | 0 | 65535 |  | 0 |  | &nbsp;
+
+</div>
 
 <div class="param">
 
@@ -59454,7 +59626,8 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 Bootloader update.
 
-If enabled, update the bootloader on the next boot.
+If enabled, update the bootloader on the next boot. DroneCAN nodes
+update within about 2 seconds of it being set, without rebooting.
 
 WARNING: do not cut the power during an update process, otherwise you will
 have to recover using some alternative method (e.g. JTAG).
@@ -59741,9 +59914,9 @@ Control if and how many GNSS receivers are required.
 0: No minimum receiver count required. Position divergence between two receivers
 and loss of a GNSS receiver still produce a warning but never trigger the
 COM_GNSSLOSS_ACT failsafe action.
-1-N: Require the presence of N GNSS receivers for arming and during flight.
+1-N: Require the presence of N GNSS receivers for arming.
 If the active count drops below this value in flight, COM_GNSSLOSS_ACT is triggered.
-When set to 2, position divergence between the two receivers also triggers COM_GNSSLOSS_ACT.
+When set to 2, position divergence between the two receivers also blocks arming when not armed and triggers COM_GNSSLOSS_ACT in flight.
 
 
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
@@ -63101,7 +63274,7 @@ Reboot | minValue | maxValue | increment | default | unit | Read-Only
 
 ## UAVCAN
 
-<div class="param-group" style="--param-count: 49">
+<div class="param-group" style="--param-count: 50">
 
 <div class="param">
 
@@ -63372,6 +63545,37 @@ Maximum fuel capacity of fuel tank 3.
 Reboot | minValue | maxValue | increment | default | unit | Read-Only
 --- | --- | --- | --- | --- | --- | ---
 &check; | 0.0 | 100000.0 | 0.1 | 15.0 | liters | &nbsp;
+
+</div>
+
+<div class="param">
+
+### UAVCAN_EC_SIGNED (`INT32`) {#UAVCAN_EC_SIGNED}
+
+Signed command for non-motor ESC channels.
+
+For motors, use CA_R_REV; bits set here for motor channels are ignored. Select ESC channels assigned a non-motor function (e.g. Peripheral via Actuator Set or Servo) to send signed RawCommand values from -MAX (full reverse) to +MAX (full forward), with 0 as neutral. Keep MIN at its default of 1 so full reverse remains distinct from disarmed and failsafe values of 0. Failsafe values use the same MIN/MAX-to-signed mapping as normal outputs.
+
+
+**Bitmask:**
+
+- `0`: ESC1
+- `1`: ESC2
+- `2`: ESC3
+- `3`: ESC4
+- `4`: ESC5
+- `5`: ESC6
+- `6`: ESC7
+- `7`: ESC8
+- `8`: ESC9
+- `9`: ESC10
+- `10`: ESC11
+- `11`: ESC12
+
+
+Reboot | minValue | maxValue | increment | default | unit | Read-Only
+--- | --- | --- | --- | --- | --- | ---
+&check; | 0 | 4095 |  | 0 |  | &nbsp;
 
 </div>
 
