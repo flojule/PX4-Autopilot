@@ -455,8 +455,6 @@ uint8_t Sih::num_motors() const
 
 	case VehicleType::RoverAckermann: return 1;
 
-	case VehicleType::Coaxial:        return 1;                // motor at index 0, blade servos at 1..4 skipped
-
 	default:                          return 0;
 	}
 }
@@ -616,6 +614,7 @@ void Sih::generate_coaxial_forces(const float dt)
 	rotor_azimuth_s az{};
 	az.azimuth = static_cast<float>(std::fmod(_plant_x(14), 2.0 * M_PI));
 	az.speed = static_cast<float>(_plant_x(13));
+	az.valid = true; // true rotor azimuth
 	az.timestamp = hrt_absolute_time();
 	_rotor_azimuth_pub.publish(az);
 

@@ -99,6 +99,8 @@ void RotorEncoder::release(int channel, uint32_t gpio)
 
 bool RotorEncoder::init()
 {
+	// advertised before the pins: a failed start leaves rotor_azimuth without data (arming check fails)
+	_rotor_azimuth_pub.advertise();
 	_estimator.setSlots(_param_slots.get());
 
 	if (!allocate(FUNCTION_SLOT, _slot_channel, _slot_gpio, &RotorEncoder::slot_isr)
@@ -175,6 +177,7 @@ void RotorEncoder::Run()
 	msg.timestamp = now;
 	msg.azimuth = _estimator.azimuth();
 	msg.speed = _estimator.speed();
+	msg.valid = _estimator.valid();
 	_rotor_azimuth_pub.publish(msg);
 }
 
@@ -205,9 +208,9 @@ int RotorEncoder::print_status()
 {
 	PX4_INFO("slots %d on channel %d, index on channel %d", _estimator.slots(), _slot_channel + 1,
 		 _index_channel + 1);
-	PX4_INFO("speed %.1f rpm, azimuth %.1f deg, index phase %.2f slot",
+	PX4_INFO("speed %.1f rpm, azimuth %.1f deg (%s), index phase %.2f slot",
 		 (double)(_estimator.speed() * 60.f / M_TWOPI_F), (double)math::degrees(_estimator.azimuth()),
-		 (double)_estimator.phase());
+		 _estimator.valid() ? "valid" : "invalid", (double)_estimator.phase());
 	PX4_INFO("slot edges %" PRIu32 ", index edges %" PRIu32 ", count errors %" PRIu32 ", glitches %" PRIu32,
 		 _slots_total, _index_total, _estimator.countErrors(), _glitches);
 	return 0;
@@ -233,7 +236,8 @@ capture pins (output functions "Rotor Encoder Slot" and "Rotor Encoder Index"; t
 no PWM outputs). Publishes rotor_azimuth at 400 Hz for coax_mixer: speed over a quarter
 revolution of slot edges, azimuth from the slot count since the index edge plus the index-to-slot
 phase measured each revolution, extrapolated to the publication time. Azimuth 0 is the index edge;
-coax_mixer's CM_AZ_OFF sets blade 0. Until the first index edge the azimuth is unreferenced.
+coax_mixer's CM_AZ_OFF sets blade 0. The azimuth is valid (coax_mixer applies cyclic) once an
+index edge was seen and while the rotor turns.
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("rotor_encoder", "driver");

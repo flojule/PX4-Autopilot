@@ -74,6 +74,7 @@
 #include "checks/missionCheck.hpp"
 #include "checks/rallyPointCheck.hpp"
 #include "checks/rcAndDataLinkCheck.hpp"
+#include "checks/rotorAzimuthCheck.hpp"
 #include "checks/vtolCheck.hpp"
 #include "checks/offboardCheck.hpp"
 #include "checks/openDroneIDCheck.hpp"
@@ -170,6 +171,7 @@ private:
 	MissionChecks _mission_checks;
 	RallyPointChecks _rally_point_checks;
 	RcAndDataLinkChecks _rc_and_data_link_checks;
+	RotorAzimuthChecks _rotor_azimuth_checks;
 	VtolChecks _vtol_checks;
 	OffboardChecks _offboard_checks;
 	TrafficAvoidanceChecks _traffic_avoidance_checks;
@@ -178,7 +180,7 @@ private:
 	ExternalChecks _external_checks;
 #endif
 
-	HealthAndArmingCheckBase *_checks[42] = {
+	HealthAndArmingCheckBase *_checks[43] = {
 #ifndef CONSTRAINED_FLASH
 		&_external_checks,
 #endif
@@ -218,6 +220,7 @@ private:
 		&_geofence_checks, // must be after _home_position_checks
 		&_flight_time_checks,
 		&_rc_and_data_link_checks,
+		&_rotor_azimuth_checks,
 		&_vtol_checks,
 		&_traffic_avoidance_checks,
 		&_gnss_redundancy_checks,

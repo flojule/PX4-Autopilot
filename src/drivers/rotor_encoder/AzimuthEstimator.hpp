@@ -111,6 +111,7 @@ public:
 	float azimuth() const { return _azimuth; }	// [0, 2 pi), 0 at the index edge
 	float speed() const { return _speed; }		// rad/s
 	float phase() const { return _phase; }		// index edge to first slot edge [slots]
+	bool valid() const { return _index_seen > 0 && _speed > 0.f; }	// azimuth referenced to the index, rotor turning
 	uint32_t countErrors() const { return _count_errors; }	// slots between index edges != slots
 
 private:

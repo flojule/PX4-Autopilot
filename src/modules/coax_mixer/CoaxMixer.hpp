@@ -33,7 +33,8 @@
 
 /**
  * Coaxial per-blade tip-flap mixer (aperocopter, fixed blade pitch): replaces control_allocator.
- * Runs on every rotor_azimuth update; outputs motor 1 (rotor speed) and servos 1-4 (tip flaps).
+ * Runs on every rotor_azimuth update (watchdog if it stops); outputs motor 1 (rotor speed) and servos 1-4
+ * (tip flaps).
  */
 
 #pragma once
@@ -74,7 +75,10 @@ public:
 	int print_status() override;
 
 private:
+	static constexpr hrt_abstime AZIMUTH_TIMEOUT = 20_ms;	// 8 encoder periods: lost, outputs from the watchdog
+
 	void Run() override;
+	void mix(float azimuth, float speed, bool azimuth_valid, hrt_abstime timestamp_sample, hrt_abstime now);
 
 	uORB::Publication<actuator_motors_s> _motors_pub{ORB_ID(actuator_motors)};
 	uORB::Publication<actuator_servos_s> _servos_pub{ORB_ID(actuator_servos)};
@@ -94,6 +98,8 @@ private:
 	float _torque[3] {};          // normalized roll, pitch, yaw
 	float _flap_cmd[4] {};        // last flap commands [rad]
 	hrt_abstime _esc_status_last{0};
+	hrt_abstime _azimuth_last{0};
+	bool _cyclic_enabled{false};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::CM_CYC_MAX>) _param_cyc_max,

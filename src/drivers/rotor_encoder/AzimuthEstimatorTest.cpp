@@ -203,7 +203,36 @@ TEST(AzimuthEstimatorTest, ConstantSpeed)
 		EXPECT_LT(run.max_speed_error, 1e-3) << rpm << " rpm";
 		EXPECT_NEAR(est.phase(), 0.37f, 1e-3f);
 		EXPECT_EQ(est.countErrors(), 0u);
+		EXPECT_TRUE(est.valid());
 	}
+}
+
+TEST(AzimuthEstimatorTest, ValidAfterIndex)
+{
+	// rotor started just past the index (first index edge after one revolution): unreferenced until then
+	AzimuthEstimator est(36);
+	EncoderSim enc(36, 0.37);
+	EXPECT_FALSE(est.valid());
+	const double om = 313.0 * RPM;
+	double theta = 0.0;
+	uint64_t t = 0;
+
+	const auto run_to = [&](double theta_end) {
+		while (theta < theta_end) {
+			t += 2500;
+			theta += om * 2.5e-3;
+			enc.advance(t, theta);
+			est.update(enc.edges(est.window()), t);
+		}
+	};
+
+	run_to(0.95 * TWO_PI);
+	EXPECT_GT(est.speed(), 0.f);
+	EXPECT_FALSE(est.valid());
+
+	run_to(1.1 * TWO_PI);
+	EXPECT_TRUE(est.valid());
+	EXPECT_LT(std::fabs(error_deg(est.azimuth(), theta)), 0.05);
 }
 
 TEST(AzimuthEstimatorTest, SpinUp)
@@ -251,5 +280,6 @@ TEST(AzimuthEstimatorTest, Stop)
 	EncoderSim enc_late(36, 0.37);
 	simulate(est_late, enc_late, [](double t) { return t < 2.0 ? 313.0 * RPM : 0.0; }, 0.0, 2.6);
 	EXPECT_FLOAT_EQ(est_late.speed(), 0.f);
+	EXPECT_FALSE(est_late.valid());
 	EXPECT_LT(est_late.azimuth(), static_cast<float>(TWO_PI));
 }

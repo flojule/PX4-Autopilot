@@ -65,6 +65,7 @@ set(health_and_arming_checks_srcs
 	checks/parachuteCheck.cpp
 	checks/powerCheck.cpp
 	checks/rcAndDataLinkCheck.cpp
+	checks/rotorAzimuthCheck.cpp
 	checks/rcCalibrationCheck.cpp
 	checks/sdcardCheck.cpp
 	checks/systemCheck.cpp
