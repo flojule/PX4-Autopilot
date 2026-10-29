@@ -1,6 +1,7 @@
-# coax_mixer replaces control_allocator (per-blade flaps need rotor azimuth)
-control_allocator stop
+# coax_mixer replaces control_allocator (per-blade flaps need rotor azimuth); started first so
+# actuator outputs never pause (SIH lockstep would stall the stop for 4 x 10 s)
 coax_mixer start
+control_allocator stop
 # rotor state and true pose (400 Hz sim time): SIH display link for tools/viz.py, GCS link for
 # aperocopter-QGC
 mavlink stream -r 400 -s DEBUG_FLOAT_ARRAY -u $udp_sihsim_port_local

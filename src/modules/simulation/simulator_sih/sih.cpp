@@ -96,6 +96,9 @@ void Sih::run()
 		}
 
 		_plant = *plant_params;
+		_ground_alt = static_cast<float>(_plant.ground_z - _plant.cg(2));
+		_lla.setAltitude(_lpos_ref_alt + _ground_alt); // start resting on the lowest point
+		_p_E = _lla.toEcef();
 		_plant_x(6) = 1.0; // level attitude, rotor at rest, flaps at 0
 
 		float v = 0.f;
@@ -370,7 +373,7 @@ void Sih::parameters_updated()
 		// Reset earth position, velocity and attitude
 		_lla.setLatitudeDeg(static_cast<double>(_sih_lat0.get()));
 		_lla.setLongitudeDeg(static_cast<double>(_sih_lon0.get()));
-		_lla.setAltitude(_lpos_ref_alt);
+		_lla.setAltitude(_lpos_ref_alt + _ground_alt);
 		_p_E = _lla.toEcef();
 
 		const Dcmf R_E2N = _lla.computeRotEcefToNed();
@@ -626,11 +629,13 @@ void Sih::generate_coaxial_forces(const float dt)
 	az.timestamp = hrt_absolute_time();
 	_rotor_azimuth_pub.publish(az);
 
-	// viewer (tools/viz.py): true pose NED + rotor state, streamed on the SIH display link
+	// viewer (tools/viz.py): true pose NED of the lower hub (body origin) + rotor state, on the SIH display link
 	debug_array_s dbg{};
 	dbg.timestamp = az.timestamp;
 	strncpy(dbg.name, "coax", sizeof(dbg.name));
-	const float viz[] = {_lpos(0), _lpos(1), _lpos(2), _q(0), _q(1), _q(2), _q(3), az.azimuth, float(_plant_x(13)),
+	const Vector3f cg(float(_plant.cg(0)), float(_plant.cg(1)), float(_plant.cg(2)));
+	const Vector3f origin = _lpos - _q.rotateVector(cg);
+	const float viz[] = {origin(0), origin(1), origin(2), _q(0), _q(1), _q(2), _q(3), az.azimuth, float(_plant_x(13)),
 			     float(_plant_x(15)), float(_plant_x(16)), float(_plant_x(17)), float(_plant_x(18))
 			    };
 	memcpy(dbg.data, viz, sizeof(viz));
@@ -766,7 +771,7 @@ void Sih::equations_of_motion(const float dt)
 	const float force_down = Vector3f(_R_N2E.transpose() * sum_of_forces_E)(2);
 	Vector3f ground_force_E;
 
-	if ((_lla.altitude() - _lpos_ref_alt) < 0.f && force_down > 0.f) {
+	if ((_lla.altitude() - _lpos_ref_alt) < _ground_alt && force_down > 0.f) {
 		if (_vehicle == VehicleType::Quadcopter
 		    || _vehicle == VehicleType::Hexacopter
 		    || _vehicle == VehicleType::TailsitterVTOL
@@ -929,7 +934,7 @@ void Sih::send_dist_snsr(const hrt_abstime &time_now_us)
 		current_distance = _distance_snsr_override;
 
 	} else {
-		current_distance = -_lpos(2) / _q.dcm_z()(2);
+		current_distance = (-_lpos(2) - _ground_alt) / _q.dcm_z()(2); // sensor at the lowest point
 
 		if (current_distance > _distance_snsr_max) {
 			// this is based on lightware lw20 behaviour
