@@ -44,6 +44,15 @@ parameters:
       default: 450.0
       unit: rpm
       decimal: 0
+    CM_MOT_IDLE:
+      description:
+        short: Motor output when armed, until the rotor azimuth is valid
+        long: Armed minimum (the rotor turns and the encoder sees its index) and limit until rotor_azimuth was valid once since arming. Keep below lift-off at zero payload (0.15 = 68 rpm at CM_RPM_MAX 450, thrust 27 % of the 0 kg weight).
+      type: float
+      default: 0.15
+      min: 0.0
+      max: 0.5
+      decimal: 2
     CM_SRV_TAU:
       description:
         short: Flap servo time constant for 1/rev lag compensation

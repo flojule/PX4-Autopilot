@@ -88,18 +88,28 @@ public:
 
 		// once per revolution: index edge to first slot edge, slot count between index edges
 		if (e.index_total != _index_seen && !e.first_slot_pending && _speed > 0.f) {
-			if (_index_seen > 0 && e.slots_at_index - _slots_at_prev_index != static_cast<uint32_t>(_slots)) {
+			const float phase = math::constrain(1e-6f * static_cast<float>(e.first_slot_time - e.index_time) * _speed / slot_angle,
+							    0.f, 1.f);
+			// index at slot edge (slots_at_index + 1 - phase): an index next to a slot edge may count it on
+			// either side, phase moves by one slot with it
+			const float revolution = static_cast<float>(static_cast<int32_t>(e.slots_at_index - _slots_at_prev_index))
+						 - (phase - _phase);
+
+			if (_index_seen > 0 && fabsf(revolution - static_cast<float>(_slots)) > 0.5f) {
 				++_count_errors;
 			}
 
-			_phase = math::constrain(1e-6f * static_cast<float>(e.first_slot_time - e.index_time) * _speed / slot_angle,
-						 0.f, 1.f);
+			_phase = phase;
 			_slots_at_prev_index = e.slots_at_index;
 			_index_seen = e.index_total;
 		}
 
-		if (e.slots_total > 0) {
-			// last slot edge: slots after the index edge (-1: before it), unreferenced before the first index
+		if (e.index_total > 0 && e.first_slot_pending) {
+			// no slot edge since the index edge (phase of this revolution unknown): from the index edge
+			_azimuth = math::min(_speed * 1e-6f * static_cast<float>(now - e.index_time), slot_angle);
+
+		} else if (e.slots_total > 0) {
+			// last slot edge: slots after the index edge, unreferenced before the first index
 			const int32_t k = (e.index_total > 0) ? static_cast<int32_t>(e.slots_total - e.slots_at_index) - 1
 					  : static_cast<int32_t>((e.slots_total - 1) % static_cast<uint32_t>(_slots));
 			const int32_t k_rev = ((k % _slots) + _slots) % _slots;

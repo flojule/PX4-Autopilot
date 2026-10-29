@@ -288,6 +288,16 @@ parameters:
       type: float
       default: 0.0
       unit: m/s
+    SIH_ENC_FAIL:
+      description:
+        short: Coaxial rotor encoder failure (SIH vehicle type 6)
+        long: Emulated rotor_encoder fault on rotor_azimuth.
+      type: enum
+      values:
+        0: None
+        1: Slot track dead (speed 0)
+        2: Index track dead (never referenced)
+      default: 0
     SIH_RNGBC_NOISE:
       description:
         short: Ranging beacon measurement noise standard deviation

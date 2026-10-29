@@ -277,6 +277,8 @@ private:
 	plant::Params _plant{};
 	plant::State _plant_x{plant::State::Zero()};
 	float _cm_flap_min{0.f}, _cm_flap_max{0.f}, _cm_omega_max{0.f}; // coax_mixer output scaling [rad, rad/s]
+	int64_t _enc_turns{0};		// rotor turns at the last index check (encoder emulation)
+	bool _enc_index_seen{false};
 	uORB::Publication<rotor_azimuth_s> _rotor_azimuth_pub{ORB_ID(rotor_azimuth)};
 	uORB::Publication<debug_array_s> _debug_array_pub{ORB_ID(debug_array)};
 #endif
@@ -370,6 +372,7 @@ private:
 		(ParamInt<px4::params::SIH_VEHICLE_TYPE>) _sih_vtype,
 		(ParamFloat<px4::params::SIH_WIND_N>) _sih_wind_n,
 		(ParamFloat<px4::params::SIH_WIND_E>) _sih_wind_e,
-		(ParamFloat<px4::params::SIH_RNGBC_NOISE>) _sih_ranging_beacon_noise
+		(ParamFloat<px4::params::SIH_RNGBC_NOISE>) _sih_ranging_beacon_noise,
+		(ParamInt<px4::params::SIH_ENC_FAIL>) _sih_enc_fail
 	)
 };
