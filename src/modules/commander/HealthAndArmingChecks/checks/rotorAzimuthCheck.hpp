@@ -41,7 +41,7 @@
 
 /**
  * Rotor azimuth (coax_mixer per-blade cyclic): present once rotor_azimuth is advertised (rotor_encoder,
- * SIH coaxial). Missing data fails the check; armed with the rotor turning but unreferenced warns.
+ * SIH coaxial). Missing data fails the check; armed without a valid azimuth for 2 s warns.
  */
 class RotorAzimuthChecks : public HealthAndArmingCheckBase
 {
@@ -53,9 +53,9 @@ public:
 
 private:
 	static constexpr hrt_abstime DATA_TIMEOUT = 200_ms;
-	static constexpr hrt_abstime UNREFERENCED_TIMEOUT = 2_s;	// spin-up passes the index in < 1 revolution
+	static constexpr hrt_abstime INVALID_TIMEOUT = 2_s;	// idle 68 rpm passes the index in < 0.9 s
 
 	uORB::Subscription _rotor_azimuth_sub{ORB_ID(rotor_azimuth)};
 	rotor_azimuth_s _rotor_azimuth{};
-	hrt_abstime _unreferenced_since{0};
+	hrt_abstime _invalid_since{0};
 };

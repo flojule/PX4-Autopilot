@@ -83,6 +83,10 @@ void CoaxMixer::Run()
 		_armed = armed.armed;
 	}
 
+	if (!_armed) {
+		_azimuth_seen_armed = false;
+	}
+
 	vehicle_thrust_setpoint_s thrust_sp;
 
 	if (_thrust_sp_sub.update(&thrust_sp)) {
@@ -125,6 +129,7 @@ void CoaxMixer::mix(float azimuth, float speed, bool azimuth_valid, hrt_abstime 
 	const float diff = math::radians(_param_diff_max.get()) * _torque[2] * scale;
 	// cyclic needs the blade azimuth: zero until the encoder is referenced and while it is lost
 	_cyclic_enabled = azimuth_valid;
+	_azimuth_seen_armed |= _armed && azimuth_valid;
 	const float cyc = azimuth_valid ? math::radians(_param_cyc_max.get()) * scale : 0.f;
 	const float c = cyc * _torque[1];
 	const float s = -cyc * _torque[0];
@@ -147,11 +152,16 @@ void CoaxMixer::mix(float azimuth, float speed, bool azimuth_valid, hrt_abstime 
 		servos.control[k] = NAN;
 	}
 
+	// armed: motor at least CM_MOT_IDLE (rotor turns, encoder references); held there until the azimuth
+	// was valid once since arming (encoder fault: no lift-off)
+	const float idle = _param_mot_idle.get();
+	const float motor = _azimuth_seen_armed ? math::max(sqrtf(_thrust), idle) : idle;
+
 	// rate controller anti-windup (replaces control_allocator's): flap range reached, or no cyclic -> no
 	// further integration along the torque setpoint
 	control_allocator_status_s status{};
 	status.torque_setpoint_achieved = !clipped && azimuth_valid;
-	status.thrust_setpoint_achieved = true;
+	status.thrust_setpoint_achieved = _azimuth_seen_armed || sqrtf(_thrust) <= idle;
 
 	for (int i = 0; i < 3; i++) {
 		status.unallocated_torque[i] = clipped ? _torque[i] : 0.f;
@@ -169,7 +179,7 @@ void CoaxMixer::mix(float azimuth, float speed, bool azimuth_valid, hrt_abstime 
 	}
 
 	if (_armed) {
-		motors.control[0] = sqrtf(_thrust); // fixed blade pitch: thrust ~ Omega^2, output 1 = CM_RPM_MAX
+		motors.control[0] = motor; // fixed blade pitch: thrust ~ Omega^2, output 1 = CM_RPM_MAX
 	}
 
 	servos.timestamp_sample = motors.timestamp_sample = timestamp_sample;
@@ -218,9 +228,10 @@ int CoaxMixer::task_spawn(int argc, char *argv[])
 
 int CoaxMixer::print_status()
 {
-	PX4_INFO("armed %d, thrust %.3f, torque %.3f %.3f %.3f, cyclic %s", _armed, (double)_thrust,
+	PX4_INFO("armed %d, thrust %.3f, torque %.3f %.3f %.3f, cyclic %s, motor %s", _armed, (double)_thrust,
 		 (double)_torque[0], (double)_torque[1], (double)_torque[2],
-		 _cyclic_enabled ? "on" : "off (rotor azimuth invalid or lost)");
+		 _cyclic_enabled ? "on" : "off (rotor azimuth invalid or lost)",
+		 (!_armed || _azimuth_seen_armed) ? "free" : "held at CM_MOT_IDLE (no valid azimuth since arming)");
 	PX4_INFO("flap cmd [deg] %.2f %.2f %.2f %.2f", (double)math::degrees(_flap_cmd[0]),
 		 (double)math::degrees(_flap_cmd[1]), (double)math::degrees(_flap_cmd[2]), (double)math::degrees(_flap_cmd[3]));
 	perf_print_counter(_loop_perf);
@@ -246,7 +257,8 @@ setpoint to rotor speed (motor 1, thrust ~ Omega^2), yaw torque to differential 
 to cyclic flap, then 4 flap commands phased by the rotor azimuth (rotor_azimuth) with servo lag
 compensation. Flap terms are scaled by (CM_RPM_REF / Omega)^2 for a speed-independent moment.
 Cyclic is zero while rotor_azimuth is invalid (encoder not yet referenced to its index, rotor stopped)
-or lost (no update for 20 ms; outputs then continue at 50 Hz).
+or lost (no update for 20 ms; outputs then continue at 50 Hz). Armed, the motor runs at least at
+CM_MOT_IDLE and stays there until rotor_azimuth was valid once since arming (encoder fault: no lift-off).
 Publishes control_allocator_status (flap range reached: rate loop anti-windup) and, with CM_NOTCH_ESC,
 the blade passage rate as esc_status rpm for the gyro dynamic notch at 2/rev and 4/rev.
 )DESCR_STR");

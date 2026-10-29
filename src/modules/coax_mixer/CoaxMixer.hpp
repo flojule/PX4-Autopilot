@@ -100,6 +100,7 @@ private:
 	hrt_abstime _esc_status_last{0};
 	hrt_abstime _azimuth_last{0};
 	bool _cyclic_enabled{false};
+	bool _azimuth_seen_armed{false};	// rotor_azimuth valid since arming: motor above CM_MOT_IDLE allowed
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::CM_CYC_MAX>) _param_cyc_max,
@@ -111,6 +112,7 @@ private:
 		(ParamFloat<px4::params::CM_SRV_RATE>) _param_srv_rate,
 		(ParamFloat<px4::params::CM_AZ_OFF>) _param_az_off,
 		(ParamBool<px4::params::CM_NOTCH_ESC>) _param_notch_esc,
-		(ParamFloat<px4::params::CM_NOTCH_MIN>) _param_notch_min
+		(ParamFloat<px4::params::CM_NOTCH_MIN>) _param_notch_min,
+		(ParamFloat<px4::params::CM_MOT_IDLE>) _param_mot_idle
 	)
 };
