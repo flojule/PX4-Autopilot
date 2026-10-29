@@ -240,6 +240,7 @@ private:
 	uint8_t _ranging_beacon_idx{0};
 
 	bool _grounded{true}; // whether the vehicle is on the ground
+	float _ground_alt{0.f}; // CG height above ground at rest [m] (coaxial: lowest point from the plant file)
 
 	// Quantities in body frame (FRD)
 	matrix::Vector3f _T_B{};  // thrust force [N]
