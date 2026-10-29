@@ -672,7 +672,7 @@ static inline constexpr timer_io_channels_t initIOTimerChannel(const io_timers_t
 		break;
 	}
 
-	ret.gpio_in = 0; // TODO (not used yet)
+	ret.gpio_in = ret.gpio_portpin; // GPIO input on the same pad (NuttX maps port and pin to the pad)
 
 	// find timer index
 	ret.timer_index = 0xff;

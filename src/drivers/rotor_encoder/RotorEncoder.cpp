@@ -85,8 +85,27 @@ bool RotorEncoder::allocate(int32_t function, int &channel, uint32_t &gpio, xcpt
 		return false;
 	}
 
-	gpio = PX4_MAKE_GPIO_EXTI(io_timer_channel_get_as_pwm_input(channel));
-	return px4_arch_gpiosetevent(gpio, true, false, true, isr, this) == PX4_OK;
+	const uint32_t pin = io_timer_channel_get_as_pwm_input(channel);
+
+	if (pin == 0) {
+		PX4_ERR("channel %d has no capture input on this board", channel + 1);
+		io_timer_unallocate_channel(channel);
+		channel = -1;
+		return false;
+	}
+
+	// pin as GPIO input first: i.MX RT gpiosetevent sets the edge interrupt only, not the pad mux
+	gpio = PX4_MAKE_GPIO_EXTI(pin);
+	px4_arch_configgpio(gpio);
+
+	if (px4_arch_gpiosetevent(gpio, true, false, true, isr, this) != PX4_OK) {
+		PX4_ERR("channel %d edge interrupt failed", channel + 1);
+		io_timer_unallocate_channel(channel);
+		channel = -1;
+		return false;
+	}
+
+	return true;
 }
 
 void RotorEncoder::release(int channel, uint32_t gpio)
