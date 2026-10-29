@@ -611,10 +611,18 @@ void Sih::generate_coaxial_forces(const float dt)
 	const Vector3f drag_arm(-float(_plant.cg(0)), -float(_plant.cg(1)), float(_plant.drag_z - _plant.cg(2)));
 	_Ma_B = drag_arm.cross(drag_B) - _KDW * _w_B;
 
+	// rotor_encoder emulation: speed 0 below one slot (36) per 0.5 s; valid once the index (azimuth 0) was
+	// passed while turning; SIH_ENC_FAIL 1: no slot edges, 2: no index edges
+	const int enc_fail = _sih_enc_fail.get();
+	const bool turning = _plant_x(13) > 2.0 * M_PI / 36.0 / 0.5 && enc_fail != 1;
+	const int64_t turns = static_cast<int64_t>(std::floor(_plant_x(14) / (2.0 * M_PI)));
+	_enc_index_seen |= turning && turns != _enc_turns && enc_fail != 2;
+	_enc_turns = turns;
+
 	rotor_azimuth_s az{};
 	az.azimuth = static_cast<float>(std::fmod(_plant_x(14), 2.0 * M_PI));
-	az.speed = static_cast<float>(_plant_x(13));
-	az.valid = true; // true rotor azimuth
+	az.speed = turning ? static_cast<float>(_plant_x(13)) : 0.f;
+	az.valid = turning && _enc_index_seen;
 	az.timestamp = hrt_absolute_time();
 	_rotor_azimuth_pub.publish(az);
 
@@ -622,7 +630,7 @@ void Sih::generate_coaxial_forces(const float dt)
 	debug_array_s dbg{};
 	dbg.timestamp = az.timestamp;
 	strncpy(dbg.name, "coax", sizeof(dbg.name));
-	const float viz[] = {_lpos(0), _lpos(1), _lpos(2), _q(0), _q(1), _q(2), _q(3), az.azimuth, az.speed,
+	const float viz[] = {_lpos(0), _lpos(1), _lpos(2), _q(0), _q(1), _q(2), _q(3), az.azimuth, float(_plant_x(13)),
 			     float(_plant_x(15)), float(_plant_x(16)), float(_plant_x(17)), float(_plant_x(18))
 			    };
 	memcpy(dbg.data, viz, sizeof(viz));
