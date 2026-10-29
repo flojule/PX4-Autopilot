@@ -65,14 +65,13 @@ public:
 		};
 
 		if (theta > _theta) {
-			// edges in angle order: index edges at n 2 pi, slot edges at (m + offset) slot
-			double next_index = std::floor(_theta / TWO_PI) * TWO_PI + TWO_PI;
+			// edges in angle order: index edges at n 2 pi (+-jitter), slot edges at (m + offset) slot
 			double next_slot = (std::floor(_theta / slot - _offset) + 1.0 + _offset) * slot;
 
-			while (next_index <= theta || next_slot <= theta) {
-				if (next_index <= next_slot) {
-					index_edge(edge_time(next_index));
-					next_index += TWO_PI;
+			while (indexAngle(_index_count + 1) <= theta || next_slot <= theta) {
+				if (indexAngle(_index_count + 1) <= next_slot) {
+					index_edge(edge_time(indexAngle(_index_count + 1)));
+					++_index_count;
 
 				} else {
 					if (_drop_next_slot) {
@@ -94,6 +93,9 @@ public:
 	/** lose the next slot edge (dirt, missed interrupt) */
 	void dropNextSlot() { _drop_next_slot = true; }
 
+	/** index edge moved by +jitter (odd revolutions) and -jitter (even) [slots]: ISR order flips */
+	void setIndexJitter(double slots) { _index_jitter = slots; }
+
 	AzimuthEstimator::Edges edges(uint32_t window_max) const
 	{
 		AzimuthEstimator::Edges e;
@@ -111,6 +113,11 @@ public:
 
 private:
 	static constexpr unsigned RING = 64;
+
+	double indexAngle(uint32_t n) const
+	{
+		return n * TWO_PI + ((n % 2) ? 1.0 : -1.0) * _index_jitter * TWO_PI / _slots;
+	}
 
 	void slot_edge(uint64_t t)
 	{
@@ -136,6 +143,8 @@ private:
 	uint64_t _t{0};
 	double _theta{0.0};
 	bool _drop_next_slot{false};
+	double _index_jitter{0.0};
+	uint32_t _index_count{0};
 
 	uint64_t _slot_time[RING] {};
 	uint32_t _slots_total{0};
@@ -255,6 +264,19 @@ TEST(AzimuthEstimatorTest, IndexOnSlotEdge)
 		const Result run = simulate(est, enc, [](double) { return 313.0 * RPM; }, 1.0, 3.0);
 		EXPECT_LT(run.max_error_deg, 0.05) << offset;
 		EXPECT_EQ(est.countErrors(), 0u);
+	}
+}
+
+TEST(AzimuthEstimatorTest, IndexOrderFlips)
+{
+	// index within 0.01 slot of a slot edge, ISR order alternating per revolution: no azimuth jump, no count errors
+	for (double offset : {1e-4, 0.9999}) {
+		AzimuthEstimator est(36);
+		EncoderSim enc(36, offset);
+		enc.setIndexJitter(0.01);
+		const Result run = simulate(est, enc, [](double) { return 313.0 * RPM; }, 1.0, 3.0);
+		EXPECT_LT(run.max_error_deg, 0.5) << offset;
+		EXPECT_EQ(est.countErrors(), 0u) << offset;
 	}
 }
 
