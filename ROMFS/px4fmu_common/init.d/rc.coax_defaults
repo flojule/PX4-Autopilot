@@ -7,19 +7,19 @@
 
 param set-default MAV_TYPE 3
 
-# roll/pitch and xy gains: mast-top gimbal at 68 kg, tuned per payload mount and payload in
+# roll/pitch and xy gains: free mast-top gimbal at 68 kg, tuned per payload mount and payload in
 # aperocopter (config gains, tools.gimbal --tune; per payload: tools.gimbal --px4 KG, set by tools.sitl):
-# fastest attitude step, then least wind position error, damping >= 0.5 attitude loop, >= 0.4 cascade,
-# gimbal free and locked. 414 N m cyclic flap authority (51.8 N m/deg both rotors x CM_CYC_MAX 8 deg
-# at CM_RPM_REF 313, held by coax_mixer's (CM_RPM_REF / Omega)^2); rate I 1.5, limit 0.8 (331 N m)
-# hold the rotor moments of airspeed
+# fastest attitude step, then least wind position error, damping >= 0.5 attitude loop (vehicle modes),
+# >= 0.4 cascade (damps the free swing), gimbal flying and locked. 414 N m cyclic flap authority (51.8 N m/deg both rotors x
+# CM_CYC_MAX 8 deg at CM_RPM_REF 313, held by coax_mixer's (CM_RPM_REF / Omega)^2); rate I 1.5,
+# limit 0.8 (331 N m) hold the rotor moments of airspeed
 param set-default MC_ROLL_P 27
 param set-default MC_PITCH_P 27
-param set-default MC_ROLLRATE_P 0.6
+param set-default MC_ROLLRATE_P 0.4
 param set-default MC_ROLLRATE_I 1.5
 param set-default MC_RR_INT_LIM 0.8
 param set-default MC_ROLLRATE_D 0
-param set-default MC_PITCHRATE_P 0.6
+param set-default MC_PITCHRATE_P 0.4
 param set-default MC_PITCHRATE_I 1.5
 param set-default MC_PR_INT_LIM 0.8
 param set-default MC_PITCHRATE_D 0
@@ -28,9 +28,9 @@ param set-default MC_YAWRATE_I 0.4
 # yaw P 4: 20 deg step rise 0.3 s at 68 kg, 0.5 s at 0 kg (Python design 0.4-0.6 s)
 param set-default MC_YAW_P 4
 # velocity loop: D 0, the payload gimbal swing mode loses damping with acceleration feedback
-param set-default MPC_XY_P 0.95
+param set-default MPC_XY_P 0.5
 param set-default MPC_XY_VEL_P_ACC 1.2
-param set-default MPC_XY_VEL_I_ACC 0.3
+param set-default MPC_XY_VEL_I_ACC 0.6
 param set-default MPC_XY_VEL_D_ACC 0
 # altitude: 1 m step rise 0.8 s at 68 kg, 1.4 s at 0 kg (Python design 0.75-0.94 s)
 param set-default MPC_Z_P 1.5
