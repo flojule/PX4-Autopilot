@@ -90,7 +90,7 @@ void Sih::run()
 		const auto plant_params = path ? plant::Params::load(path) : std::nullopt;
 
 		if (!plant_params) {
-			PX4_ERR("coaxial: set APEROCOPTER_PLANT to a readable tools.plant_py.params file");
+			PX4_ERR("coaxial: set APEROCOPTER_PLANT to a readable plant file (tools.gimbal --plant)");
 			exit_and_cleanup(desc);
 			return;
 		}
