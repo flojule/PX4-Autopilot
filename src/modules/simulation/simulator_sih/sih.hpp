@@ -277,6 +277,7 @@ private:
 	void generate_coaxial_forces(const float dt);
 	plant::Params _plant{};
 	plant::State _plant_x{plant::State::Zero()};
+	plant::GimbalState _gimbal_x{plant::GimbalState::Zero()}; // payload joint (plant file), locked on the ground
 	float _cm_flap_min{0.f}, _cm_flap_max{0.f}, _cm_omega_max{0.f}; // coax_mixer output scaling [rad, rad/s]
 	int64_t _enc_turns{0};		// rotor turns at the last index check (encoder emulation)
 	bool _enc_index_seen{false};
