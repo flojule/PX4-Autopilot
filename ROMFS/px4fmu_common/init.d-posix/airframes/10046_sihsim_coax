@@ -4,7 +4,7 @@
 #
 # @type Coaxial Helicopter
 #
-# Needs APEROCOPTER_PLANT=<file from: python -m tools.plant_py.params> (aperocopter repo).
+# Needs APEROCOPTER_PLANT=<file from: python -m tools.gimbal --plant FILE --payload KG> (aperocopter repo).
 #
 
 . ${R}etc/init.d/rc.coax_defaults
