@@ -614,6 +614,17 @@ void Sih::generate_coaxial_forces(const float dt)
 	const Vector3f drag_arm(-float(_plant.cg(0)), -float(_plant.cg(1)), float(_plant.drag_z - _plant.cg(2)));
 	_Ma_B = drag_arm.cross(drag_B) - _KDW * _w_B;
 
+	// payload on its gimbal (plant file): body without it plus the joint reaction; locked (centred) on the ground
+	if (_plant.gimbal.mass > 0.0) {
+		const Vector3f f_ext = _T_B + drag_B - _KDV * v_air_B;
+		const Vector3f m_ext = _Mt_B + _Ma_B;
+		const plant::Wrench g = plant::gimbal_step(_plant, _gimbal_x, _grounded, _plant_x.segment<4>(6),
+					_plant_x.segment<3>(10), _plant_x.segment<3>(3), plant::Vec3(f_ext(0), f_ext(1), f_ext(2)),
+					plant::Vec3(m_ext(0), m_ext(1), m_ext(2)), dt);
+		_T_B += Vector3f(g.force(0), g.force(1), g.force(2));
+		_Mt_B += Vector3f(g.moment(0), g.moment(1), g.moment(2));
+	}
+
 	// rotor_encoder emulation: speed 0 below one slot (36) per 0.5 s; valid once the index (azimuth 0) was
 	// passed while turning; SIH_ENC_FAIL 1: no slot edges, 2: no index edges
 	const int enc_fail = _sih_enc_fail.get();
@@ -629,14 +640,16 @@ void Sih::generate_coaxial_forces(const float dt)
 	az.timestamp = hrt_absolute_time();
 	_rotor_azimuth_pub.publish(az);
 
-	// viewer (tools/viz.py): true pose NED of the lower hub (body origin) + rotor state, on the SIH display link
+	// viewer (tools/viz.py): true pose NED of the lower hub (body origin), rotor state, gimbal roll and pitch,
+	// on the SIH display link
 	debug_array_s dbg{};
 	dbg.timestamp = az.timestamp;
 	strncpy(dbg.name, "coax", sizeof(dbg.name));
 	const Vector3f cg(float(_plant.cg(0)), float(_plant.cg(1)), float(_plant.cg(2)));
 	const Vector3f origin = _lpos - _q.rotateVector(cg);
 	const float viz[] = {origin(0), origin(1), origin(2), _q(0), _q(1), _q(2), _q(3), az.azimuth, float(_plant_x(13)),
-			     float(_plant_x(15)), float(_plant_x(16)), float(_plant_x(17)), float(_plant_x(18))
+			     float(_plant_x(15)), float(_plant_x(16)), float(_plant_x(17)), float(_plant_x(18)),
+			     float(_gimbal_x(0)), float(_gimbal_x(1))
 			    };
 	memcpy(dbg.data, viz, sizeof(viz));
 	_debug_array_pub.publish(dbg);
@@ -1143,6 +1156,7 @@ int Sih::print_status()
 		PX4_INFO("rotor speed %.1f rad/s, flaps %.2f %.2f %.2f %.2f deg", _plant_x(13),
 			 math::degrees(_plant_x(15)), math::degrees(_plant_x(16)), math::degrees(_plant_x(17)),
 			 math::degrees(_plant_x(18)));
+		PX4_INFO("gimbal roll %.1f pitch %.1f deg", math::degrees(_gimbal_x(0)), math::degrees(_gimbal_x(1)));
 #endif
 	}
 
