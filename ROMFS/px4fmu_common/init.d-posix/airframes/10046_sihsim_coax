@@ -32,4 +32,9 @@ param set-default PWM_MAIN_FUNC5 101
 param set-default SIH_KDV 0
 param set-default SIH_KDW 0
 
+# geofence off in simulation (tools.sitl failsafe sets it)
+param set-default GF_ACTION 0
+param set-default GF_MAX_HOR_DIST 0
+param set-default GF_MAX_VER_DIST 0
+
 param set SIH_VEHICLE_TYPE 6
